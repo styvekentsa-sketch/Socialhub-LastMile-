@@ -4,12 +4,14 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import AuthSplash from './components/auth/AuthSplash.jsx'
 import ProtectedRoute from './components/auth/ProtectedRoute.jsx'
 import MainLayout from './components/layout/MainLayout.jsx'
+import PwaInstallButton from './components/pwa/PwaInstallButton.jsx'
 import AuthProvider from './context/AuthProvider.jsx'
 import AvatarViewerProvider from './context/AvatarViewerProvider.jsx'
 import LanguageProvider from './context/LanguageProvider.jsx'
 import SocketProvider from './context/SocketProvider.jsx'
 import ThemeProvider from './context/ThemeProvider.jsx'
 import { ROLE_DASHBOARDS, useAuth } from './context/auth.js'
+
 const Login = lazy(() => import('./pages/Login.jsx'))
 const CreateOrder = lazy(() => import('./pages/CreateOrder.jsx'))
 const MerchantDashboard = lazy(() => import('./pages/MerchantDashboard.jsx'))
@@ -18,8 +20,10 @@ const Profile = lazy(() => import('./pages/Profile.jsx'))
 const Register = lazy(() => import('./pages/Register.jsx'))
 const PublicShop = lazy(() => import('./pages/PublicShop.jsx'))
 const Tracking = lazy(() => import('./pages/Tracking.jsx'))
-const DeliveriesPage = lazy(() => import('./pages/WorkspacePages.jsx').then((module) => ({ default: module.DeliveriesPage })))
-const DriverMapPage = lazy(() => import('./pages/WorkspacePages.jsx').then((module) => ({ default: module.DriverMapPage })))
+const DeliveriesPage = lazy(() => import('./pages/WorkspacePages.jsx')
+  .then((module) => ({ default: module.DeliveriesPage })))
+const DriverMapPage = lazy(() => import('./pages/WorkspacePages.jsx')
+  .then((module) => ({ default: module.DriverMapPage })))
 
 function DashboardRedirect() {
   const { user } = useAuth()
@@ -35,9 +39,9 @@ function AnimatedRoutes() {
   return (
     <AnimatePresence mode="wait" initial={false}>
       <Routes location={location} key={routeKey}>
-        <Route path="login" element={<Login />} />
-        <Route path="register" element={<Register />} />
-        <Route path="shop/:slug" element={<PublicShop />} />
+        <Route path="login" element={<Login installControl={<PwaInstallButton />} />} />
+        <Route path="register" element={<Register installControl={<PwaInstallButton />} />} />
+        <Route path="shop/:slug" element={<PublicShop installControl={<PwaInstallButton />} />} />
         <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
           <Route index element={<DashboardRedirect />} />
           <Route path="orders" element={<MerchantDashboard />} />

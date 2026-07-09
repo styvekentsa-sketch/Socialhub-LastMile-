@@ -2,10 +2,22 @@
 import pool from '../config/db.js';
 
 export const TrackingModel = {
-  async updatePosition(driverId, latitude, longitude) {
+  async updatePosition(driverId, position) {
+    const { accuracy, capturedAt, heading, latitude, longitude, speed } = position;
+
     await pool.query(
-      'INSERT INTO driver_positions (driver_id, latitude, longitude) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE latitude = ?, longitude = ?, updated_at = CURRENT_TIMESTAMP',
-      [driverId, latitude, longitude, latitude, longitude]
+      `INSERT INTO driver_positions
+        (driver_id, latitude, longitude, accuracy, heading, speed, captured_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        latitude = VALUES(latitude),
+        longitude = VALUES(longitude),
+        accuracy = VALUES(accuracy),
+        heading = VALUES(heading),
+        speed = VALUES(speed),
+        captured_at = VALUES(captured_at),
+        updated_at = CURRENT_TIMESTAMP`,
+      [driverId, latitude, longitude, accuracy, heading, speed, capturedAt]
     );
   },
 

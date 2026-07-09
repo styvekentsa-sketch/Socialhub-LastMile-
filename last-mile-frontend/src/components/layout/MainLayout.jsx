@@ -18,6 +18,7 @@ import { useLanguage } from '../../context/languageContext.js'
 import { useSocket } from '../../context/socketContext.js'
 import LanguageSwitcher from '../settings/LanguageSwitcher.jsx'
 import ThemeToggle from '../settings/ThemeToggle.jsx'
+import PwaInstallButton from '../pwa/PwaInstallButton.jsx'
 import AvatarTrigger from '../profile/AvatarTrigger.jsx'
 import UserAvatar from '../profile/UserAvatar.jsx'
 import { disconnectSocket } from '../../services/socket.js'
@@ -201,6 +202,7 @@ function Header({ isConnected, onLogout, title, user, t }) {
         </div>
 
         <div className="flex items-center gap-1.5">
+          <PwaInstallButton />
           <LanguageSwitcher />
           <ThemeToggle />
         </div>

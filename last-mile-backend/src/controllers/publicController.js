@@ -82,7 +82,6 @@ export const getPublicShop = async (req, res, next) => {
 
 export const checkout = async (req, res, next) => {
   let paymentReference = null;
-  let providerInitiated = false;
 
   try {
     const shopSlug = normalizeSlug(req.body.shop_slug);
@@ -154,7 +153,6 @@ export const checkout = async (req, res, next) => {
         shopSlug
       });
     }
-    providerInitiated = true;
 
     await PublicShopModel.saveProviderDetails(
       paymentReference,
@@ -184,7 +182,7 @@ export const checkout = async (req, res, next) => {
       items: result.items
     });
   } catch (error) {
-    if (paymentReference && !providerInitiated) {
+    if (paymentReference) {
       await PublicShopModel.failPayment(paymentReference, error.message).catch(() => undefined);
     }
 
@@ -214,14 +212,16 @@ export const getPublicPayment = async (req, res, next) => {
       payment_reference: payment.payment_reference,
       requires_confirmation: payment.payment_status === 'pending',
       requires_redirect: false,
-      payment_link: payment.payment_redirect_url,
       order: {
         id: payment.order_id,
         status: 'pending',
         total: Number(payment.checkout_total)
       },
       customer: {
-        district: payment.delivery_address
+        district: payment.delivery_address,
+        email: payment.client_email,
+        name: payment.client_name,
+        phone: payment.client_phone
       },
       shop: {
         id: payment.merchant_id,

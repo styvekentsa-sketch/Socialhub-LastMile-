@@ -2,12 +2,18 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const allowedOrigins = (process.env.CORS_ORIGIN || '')
+const configuredOrigins = (process.env.CORS_ORIGIN || '')
   .split(',')
   .map((origin) => origin.trim().replace(/\/$/, ''))
   .filter(Boolean);
 
-if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
+const developmentOrigins = process.env.NODE_ENV === 'production'
+  ? []
+  : ['http://localhost:5173', 'http://127.0.0.1:5173'];
+
+const allowedOrigins = new Set([...configuredOrigins, ...developmentOrigins]);
+
+if (process.env.NODE_ENV === 'production' && allowedOrigins.size === 0) {
   throw new Error('CORS_ORIGIN doit etre configure en production.');
 }
 
@@ -18,7 +24,7 @@ const validateOrigin = (origin, callback) => {
 
   const normalizedOrigin = origin.replace(/\/$/, '');
 
-  if (allowedOrigins.includes(normalizedOrigin)) {
+  if (allowedOrigins.has(normalizedOrigin)) {
     return callback(null, true);
   }
 

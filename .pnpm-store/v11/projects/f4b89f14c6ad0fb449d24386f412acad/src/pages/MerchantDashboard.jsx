@@ -24,6 +24,7 @@ import AvatarTrigger from '../components/profile/AvatarTrigger.jsx'
 import { useAuth } from '../context/auth.js'
 import { useLanguage } from '../context/languageContext.js'
 import { useSocket } from '../context/socketContext.js'
+import useAutoRefresh from '../hooks/useAutoRefresh.js'
 import { getApiErrorMessage } from '../services/api.js'
 import driverService from '../services/driverService.js'
 import orderService from '../services/orderService.js'
@@ -461,6 +462,9 @@ export default function MerchantDashboard() {
       }
     }
   }, [])
+
+  const refreshOrdersSilently = useCallback(() => fetchOrders({ silent: true }), [fetchOrders])
+  useAutoRefresh(refreshOrdersSilently, ['orders'])
 
   useEffect(() => {
     fetchOrders()

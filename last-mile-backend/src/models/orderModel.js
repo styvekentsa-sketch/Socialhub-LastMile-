@@ -74,10 +74,18 @@ export const OrderModel = {
     const [rows] = await pool.query(
       `SELECT
         o.*,
+        driver.name AS driver_name,
+        driver.phone AS driver_phone,
+        driver.avatar AS driver_avatar,
         p.latitude AS driver_latitude,
         p.longitude AS driver_longitude,
+        p.accuracy AS driver_position_accuracy,
+        p.heading AS driver_position_heading,
+        p.speed AS driver_position_speed,
+        p.captured_at AS driver_position_captured_at,
         p.updated_at AS driver_position_updated_at
       FROM orders o
+      LEFT JOIN users driver ON driver.id = o.driver_id
       LEFT JOIN driver_positions p ON p.driver_id = o.driver_id
       WHERE o.id = ?`,
       [orderId]

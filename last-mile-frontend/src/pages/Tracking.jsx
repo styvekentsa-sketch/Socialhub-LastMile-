@@ -5,6 +5,7 @@ import { useParams } from 'react-router-dom'
 import TrackingMap from '../components/map/TrackingMap.jsx'
 import { useLanguage } from '../context/languageContext.js'
 import { useSocket } from '../context/socketContext.js'
+import useAutoRefresh from '../hooks/useAutoRefresh.js'
 import orderService from '../services/orderService.js'
 
 const ACTIVE_STATUSES = new Set(['assigned', 'picking', 'in_transit', 'picked_up'])
@@ -53,8 +54,10 @@ export default function Tracking() {
     setHistory(Array.isArray(data) ? data : [])
   }, [])
 
-  const loadOrders = useCallback(async () => {
-    setIsLoadingOrders(true)
+  const loadOrders = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setIsLoadingOrders(true)
+    }
     setError(false)
 
     try {
@@ -72,7 +75,9 @@ export default function Tracking() {
     } catch {
       setError(true)
     } finally {
-      setIsLoadingOrders(false)
+      if (!silent) {
+        setIsLoadingOrders(false)
+      }
     }
   }, [routeOrderId])
 
@@ -117,6 +122,28 @@ export default function Tracking() {
     }
   }, [selectedOrderId])
 
+  const refreshTrackingSilently = useCallback(async () => {
+    await loadOrders({ silent: true })
+
+    if (!selectedOrderId) {
+      return
+    }
+
+    try {
+      const [orderData, historyData] = await Promise.all([
+        orderService.getOrderTrackingState(selectedOrderId),
+        orderService.getOrderTracking(selectedOrderId),
+      ])
+      setTrackingOrder(orderData)
+      setHistory(Array.isArray(historyData) ? historyData : [])
+      setError(false)
+    } catch {
+      setError(true)
+    }
+  }, [loadOrders, selectedOrderId])
+
+  useAutoRefresh(refreshTrackingSilently, ['orders'])
+
   useEffect(() => {
     const handleLocationUpdate = (payload = {}) => {
       if (Number(payload.order_id) !== Number(selectedOrderId)) {
@@ -127,6 +154,10 @@ export default function Tracking() {
         ...currentOrder,
         driver_latitude: payload.latitude,
         driver_longitude: payload.longitude,
+        driver_position_accuracy: payload.accuracy,
+        driver_position_captured_at: payload.captured_at,
+        driver_position_heading: payload.heading,
+        driver_position_speed: payload.speed,
         driver_position_updated_at: payload.updated_at,
       } : currentOrder)
     }
@@ -207,7 +238,7 @@ export default function Tracking() {
               </select>
             </label>
           )}
-          <button type="button" onClick={loadOrders} disabled={isLoadingOrders} className="grid size-11 shrink-0 place-items-center rounded-md border border-zinc-200 text-zinc-500 hover:bg-white hover:text-zinc-900 disabled:opacity-50 dark:border-zinc-800 dark:hover:bg-zinc-900 dark:hover:text-zinc-100" aria-label={t('tracking.refresh')} title={t('tracking.refresh')}>
+          <button type="button" onClick={() => loadOrders()} disabled={isLoadingOrders} className="grid size-11 shrink-0 place-items-center rounded-md border border-zinc-200 text-zinc-500 hover:bg-white hover:text-zinc-900 disabled:opacity-50 dark:border-zinc-800 dark:hover:bg-zinc-900 dark:hover:text-zinc-100" aria-label={t('tracking.refresh')} title={t('tracking.refresh')}>
             <RefreshCw aria-hidden="true" className={isLoadingOrders ? 'animate-spin' : ''} size={16} />
           </button>
         </div>

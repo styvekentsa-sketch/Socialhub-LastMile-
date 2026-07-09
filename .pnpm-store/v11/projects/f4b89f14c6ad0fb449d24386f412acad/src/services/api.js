@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getSyncScopeFromUrl, notifyDataChanged } from './dataSync.js'
 import { clearAuthToken, getAuthToken } from './tokenStorage.js'
 
 export const AUTH_UNAUTHORIZED_EVENT = 'auth:unauthorized'
@@ -19,7 +20,16 @@ api.interceptors.request.use((config) => {
 })
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const method = response.config?.method?.toLowerCase()
+    const syncScope = getSyncScopeFromUrl(response.config?.url)
+
+    if (syncScope && ['post', 'put', 'patch', 'delete'].includes(method)) {
+      notifyDataChanged(syncScope, 'api')
+    }
+
+    return response
+  },
   (error) => {
     const status = error.response?.status
     const requestUrl = error.config?.url || ''

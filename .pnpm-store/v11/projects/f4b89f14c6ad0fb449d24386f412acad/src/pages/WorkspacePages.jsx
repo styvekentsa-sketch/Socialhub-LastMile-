@@ -6,12 +6,14 @@ import {
   Phone,
   X,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import DriverInteractiveMap from '../components/map/DriverInteractiveMap.jsx'
 import { useLanguage } from '../context/languageContext.js'
 import useDriverOrders from '../hooks/useDriverOrders.js'
 import driverService from '../services/driverService.js'
 import orderService from '../services/orderService.js'
+
+const MAX_GPS_ACCURACY_METERS = Number(import.meta.env.VITE_GPS_MAX_ACCURACY_METERS) || 100
 
 function PageShell({ children }) {
   return <div className="mx-auto w-full max-w-[1480px] p-4 sm:p-6 lg:p-8">{children}</div>
@@ -218,75 +220,101 @@ export function DriverMapPage() {
   const { t } = useLanguage()
   const { error, isLoading, orders, updateStatus, updatingOrderId } = useDriverOrders()
   const [position, setPosition] = useState(null)
-  const [locationError, setLocationError] = useState('')
-  const isSendingLocationRef = useRef(false)
-  const queuedLocationRef = useRef(null)
-  const lastPositionRef = useRef(null)
+  const [positionAccuracy, setPositionAccuracy] = useState(null)
+  const [locationIssue, setLocationIssue] = useState(null)
   const activeOrder = useMemo(() => (
-    orders.find((order) => !['delivered', 'failed', 'cancelled'].includes(order.status)) || orders[0] || null
+    orders.find((order) => !['delivered', 'failed', 'cancelled'].includes(order.status)) || null
   ), [orders])
+  const activeOrderId = activeOrder?.id
 
   useEffect(() => {
-    if (!navigator.geolocation) {
-      setLocationError(t('map.geolocationUnsupported'))
+    if (!activeOrderId) {
+      setPosition(null)
+      setPositionAccuracy(null)
+      setLocationIssue(null)
       return undefined
     }
 
-    let isMounted = true
-
-    const sendQueuedLocations = async (nextPosition) => {
-      queuedLocationRef.current = nextPosition
-
-      if (isSendingLocationRef.current) {
-        return
-      }
-
-      isSendingLocationRef.current = true
-
-      while (isMounted && queuedLocationRef.current) {
-        const locationToSend = queuedLocationRef.current
-        queuedLocationRef.current = null
-
-        try {
-          await driverService.updateCurrentLocation(locationToSend[0], locationToSend[1])
-        } catch {
-          if (isMounted) {
-            setLocationError(t('map.locationSendError'))
-          }
-        }
-      }
-
-      isSendingLocationRef.current = false
+    if (!navigator.geolocation) {
+      setLocationIssue('unsupported')
+      return undefined
     }
 
-    const watchId = navigator.geolocation.watchPosition(({ coords }) => {
-      if (!Number.isFinite(coords.latitude) || !Number.isFinite(coords.longitude)) {
-        setLocationError(t('map.locationUnavailable'))
+    let isStopped = false
+    let isSending = false
+    let queuedPosition = null
+
+    const sendPosition = async (gpsPosition) => {
+      if (isStopped) {
         return
       }
 
-      const nextPosition = [coords.latitude, coords.longitude]
-      const previousPosition = lastPositionRef.current
-
-      if (previousPosition?.[0] === nextPosition[0] && previousPosition?.[1] === nextPosition[1]) {
+      if (isSending) {
+        queuedPosition = gpsPosition
         return
       }
 
-      lastPositionRef.current = nextPosition
-      setPosition(nextPosition)
-      setLocationError('')
-      sendQueuedLocations(nextPosition)
+      isSending = true
+
+      try {
+        await driverService.updateCurrentLocation(gpsPosition)
+
+        if (!isStopped) {
+          setLocationIssue(null)
+        }
+      } catch {
+        if (!isStopped) {
+          setLocationIssue('sendFailed')
+        }
+      } finally {
+        isSending = false
+
+        if (queuedPosition && !isStopped) {
+          const nextPosition = queuedPosition
+          queuedPosition = null
+          sendPosition(nextPosition)
+        }
+      }
+    }
+
+    const watchId = navigator.geolocation.watchPosition(({ coords, timestamp }) => {
+      const latitude = Number(coords.latitude)
+      const longitude = Number(coords.longitude)
+      const accuracy = Number(coords.accuracy)
+
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || !Number.isFinite(accuracy)) {
+        setLocationIssue('unavailable')
+        return
+      }
+
+      setPositionAccuracy(accuracy)
+
+      if (accuracy > MAX_GPS_ACCURACY_METERS) {
+        setPosition(null)
+        setLocationIssue('lowAccuracy')
+        return
+      }
+
+      setPosition([latitude, longitude])
+      setLocationIssue(null)
+
+      sendPosition({
+        accuracy,
+        captured_at: new Date(timestamp || Date.now()).toISOString(),
+        heading: Number.isFinite(Number(coords.heading)) ? Number(coords.heading) : null,
+        latitude,
+        longitude,
+        speed: Number.isFinite(Number(coords.speed)) ? Number(coords.speed) : null,
+      })
     }, (geolocationError) => {
-      if (!isMounted) {
-        return
+      const issueByCode = {
+        1: 'permissionDenied',
+        2: 'unavailable',
+        3: 'timeout',
       }
 
-      const errorKey = geolocationError.code === geolocationError.PERMISSION_DENIED
-        ? 'map.locationPermissionDenied'
-        : geolocationError.code === geolocationError.TIMEOUT
-          ? 'map.locationTimeout'
-          : 'map.locationUnavailable'
-      setLocationError(t(errorKey))
+      setPosition(null)
+      setLocationIssue(issueByCode[geolocationError.code] || 'unavailable')
     }, {
       enableHighAccuracy: true,
       maximumAge: 0,
@@ -294,11 +322,11 @@ export function DriverMapPage() {
     })
 
     return () => {
-      isMounted = false
-      queuedLocationRef.current = null
+      isStopped = true
+      queuedPosition = null
       navigator.geolocation.clearWatch(watchId)
     }
-  }, [t])
+  }, [activeOrderId])
 
   return (
     <PageShell>
@@ -307,11 +335,13 @@ export function DriverMapPage() {
         <div className="grid min-h-[440px] place-items-center rounded-lg border border-zinc-800 bg-zinc-950"><LoaderCircle aria-hidden="true" className="animate-spin text-amber-500" size={24} /></div>
       ) : (
         <DriverInteractiveMap
-          error={error || locationError}
+          error={error}
           isUpdating={Number(updatingOrderId) === Number(activeOrder?.id)}
           onStatusChange={updateStatus}
           order={activeOrder}
           position={position}
+          positionAccuracy={positionAccuracy}
+          locationIssue={locationIssue}
         />
       )}
     </PageShell>

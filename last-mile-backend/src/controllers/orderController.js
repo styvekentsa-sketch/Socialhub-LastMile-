@@ -66,7 +66,18 @@ export const createOrder = async (req, res, next) => {
       isNonEmptyString(description) ? description.trim() : null
     );
 
-    return res.status(201).json({ message: 'Commande creee avec succes.', orderId });
+    const payload = {
+      order_id: orderId,
+      merchant_id: req.user.id,
+      status: 'pending'
+    };
+
+    getIO()
+      .to(`merchant_${req.user.id}`)
+      .to('admins')
+      .emit('order_created', payload);
+
+    return res.status(201).json({ message: 'Commande creee avec succes.', orderId, order: payload });
   } catch (error) {
     if (error.statusCode) {
       res.status(error.statusCode);

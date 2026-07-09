@@ -22,6 +22,12 @@ dotenv.config();
 
 const app = express();
 const publicDirectory = fileURLToPath(new URL('../public/', import.meta.url));
+const trustProxyValue = process.env.TRUST_PROXY?.trim();
+
+if (trustProxyValue && trustProxyValue !== 'false') {
+  const trustProxyHops = Number.parseInt(trustProxyValue, 10);
+  app.set('trust proxy', Number.isInteger(trustProxyHops) ? trustProxyHops : trustProxyValue);
+}
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.disable('x-powered-by');
@@ -53,9 +59,12 @@ initializeSocket(httpServer);
 const startServer = async () => {
   try {
     await pool.query('SELECT 1');
+    console.log('Connexion a la base de donnees MySQL reussie.');
 
     const PORT = process.env.PORT || 3000;
-    httpServer.listen(PORT);
+    httpServer.listen(PORT, () => {
+      console.log(`Serveur en ligne sur le port ${PORT}`);
+    });
   } catch (error) {
     console.error('Erreur fatale lors du demarrage du serveur :', error.message);
     process.exit(1);

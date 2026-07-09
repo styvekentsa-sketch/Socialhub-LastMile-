@@ -3,10 +3,6 @@ import pool from '../src/config/db.js';
 
 dotenv.config();
 
-if (process.env.NODE_ENV === 'production') {
-  throw new Error('Le seed produits est interdit en production.');
-}
-
 const PRODUCTS = [
   { merchantId: 3, name: 'Air Force 1 Ultra', price: 45000, imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1000&q=85', stock: 15 },
   { merchantId: 3, name: 'iPhone 13 Pro Max', price: 450000, imageUrl: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?auto=format&fit=crop&w=1000&q=85', stock: 5 },

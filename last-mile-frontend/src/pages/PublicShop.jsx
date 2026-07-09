@@ -18,11 +18,12 @@ import {
   X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import LanguageSwitcher from '../components/settings/LanguageSwitcher.jsx'
 import ThemeToggle from '../components/settings/ThemeToggle.jsx'
 import UserAvatar from '../components/profile/UserAvatar.jsx'
 import { useLanguage } from '../context/languageContext.js'
+import useAutoRefresh from '../hooks/useAutoRefresh.js'
 import { getApiErrorMessage } from '../services/api.js'
 import publicShopService from '../services/publicShopService.js'
 import { createPaymentSocket } from '../services/paymentSocket.js'
@@ -31,7 +32,6 @@ import { resolveAvatarUrl } from '../utils/avatar.js'
 const DISTRICTS = ['Akwa', 'Bonamoussadi', 'Ndogbong', 'Bonapriso', 'Deido']
 const INITIAL_CHECKOUT = {
   name: '',
-  email: '',
   phone: '',
   district: 'Akwa',
   payment_method: 'orange_money',
@@ -99,13 +99,9 @@ function OperatorMark({ method }) {
   return <span className="grid size-10 shrink-0 place-items-center rounded-md bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100"><CreditCard aria-hidden="true" size={19} /></span>
 }
 
-function WaitingPayment({ checkout, language, payment, t }) {
+function WaitingPayment({ checkout, countdown, language, payment, t }) {
   const amount = formatAmount(payment.order.total, language)
-  const operatorKey = checkout.payment_method === 'orange_money'
-    ? 'socialHub.ussdOrange'
-    : checkout.payment_method === 'mtn_momo'
-      ? 'socialHub.ussdMtn'
-      : 'socialHub.cardPending'
+  const operatorKey = checkout.payment_method === 'orange_money' ? 'socialHub.ussdOrange' : 'socialHub.ussdMtn'
 
   return (
     <motion.div key="waiting-payment" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex min-h-[430px] flex-col items-center justify-center px-2 py-8 text-center">
@@ -117,9 +113,10 @@ function WaitingPayment({ checkout, language, payment, t }) {
       <p className="mt-6 text-[10px] font-semibold uppercase text-amber-600 dark:text-amber-400">{t('socialHub.ussdTitle')}</p>
       <h3 className="mt-2 max-w-md text-xl font-semibold text-zinc-950 dark:text-zinc-100">{t(operatorKey, { amount })}</h3>
       <p className="mt-3 max-w-sm text-sm leading-6 text-zinc-500">{t('socialHub.ussdDetail', { phone: checkout.phone })}</p>
-      {payment.payment_link && (
-        <a href={payment.payment_link} className="mt-6 flex h-11 items-center justify-center rounded-md border border-amber-500/35 px-4 text-sm font-semibold text-amber-600 dark:text-amber-400">{t('socialHub.continuePayment')}</a>
-      )}
+      <div className="mt-7 grid size-16 place-items-center rounded-full border border-zinc-200 bg-zinc-50 font-mono text-lg font-semibold text-zinc-950 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100">
+        {countdown}
+      </div>
+      <p className="mt-2 text-xs text-zinc-400">{t('socialHub.secondsRemaining')}</p>
       <div className="mt-7 flex items-center gap-2 text-xs text-zinc-500">
         <span className="relative flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-70" /><span className="relative size-2 rounded-full bg-emerald-500" /></span>
         {t('socialHub.realtimeConfirmation')}
@@ -128,7 +125,7 @@ function WaitingPayment({ checkout, language, payment, t }) {
   )
 }
 
-function CheckoutSheet({ amount, cartItems, checkout, error, isLoading, language, onChange, onClose, onSubmit, pendingPayment, t }) {
+function CheckoutSheet({ amount, cartItems, checkout, countdown, error, isLoading, language, onChange, onClose, onSubmit, pendingPayment, t }) {
   const total = formatCurrency(amount, language)
   const paymentOptions = [
     { value: 'orange_money', label: t('socialHub.orangeMoney'), detail: t('socialHub.mobileMoneyDetail'), selected: 'border-orange-500 bg-orange-500/8', hover: 'hover:border-orange-500/70' },
@@ -170,7 +167,7 @@ function CheckoutSheet({ amount, cartItems, checkout, error, isLoading, language
 
         <AnimatePresence mode="wait">
           {pendingPayment ? (
-            <WaitingPayment checkout={checkout} language={language} payment={pendingPayment} t={t} />
+            <WaitingPayment checkout={checkout} countdown={countdown} language={language} payment={pendingPayment} t={t} />
           ) : (
             <motion.form key="payment-form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -8 }} onSubmit={onSubmit} className="mt-5 space-y-4">
               <div className="space-y-2 border-y border-zinc-200 py-4 dark:border-zinc-800">
@@ -190,13 +187,6 @@ function CheckoutSheet({ amount, cartItems, checkout, error, isLoading, language
             <span className="group relative block">
               <UserRound aria-hidden="true" className="form-icon" size={16} />
               <input required name="name" value={checkout.name} onChange={onChange} className="form-field" autoComplete="name" />
-            </span>
-          </label>
-          <label className="block">
-            <span className="mb-2 block text-xs font-medium text-zinc-500">{t('socialHub.email')}</span>
-            <span className="group relative block">
-              <UserRound aria-hidden="true" className="form-icon" size={16} />
-              <input required name="email" type="email" value={checkout.email} onChange={onChange} className="form-field" autoComplete="email" />
             </span>
           </label>
           <label className="block">
@@ -263,8 +253,7 @@ function SuccessSheet({ checkoutResult, district, language, onClose, t }) {
     trackingUrl,
   })
   const sellerPhone = normalizeWhatsAppNumber(checkoutResult.shop.phone)
-  const whatsappBaseUrl = import.meta.env.VITE_WHATSAPP_URL?.trim()?.replace(/\/$/, '') || ''
-  const whatsappUrl = `${whatsappBaseUrl}/${sellerPhone}?text=${encodeURIComponent(message)}`
+  const whatsappUrl = `https://wa.me/${sellerPhone}?text=${encodeURIComponent(message)}`
 
   return (
     <div className="fixed inset-0 z-[70] grid place-items-end bg-zinc-950/80 backdrop-blur-sm sm:place-items-center">
@@ -289,23 +278,25 @@ function SuccessSheet({ checkoutResult, district, language, onClose, t }) {
   )
 }
 
-export default function PublicShop() {
+export default function PublicShop({ installControl }) {
   const { slug } = useParams()
-  const [searchParams, setSearchParams] = useSearchParams()
   const { language, t } = useLanguage()
   const [catalog, setCatalog] = useState(null)
   const [cart, setCart] = useState({})
   const [checkout, setCheckout] = useState(INITIAL_CHECKOUT)
   const [checkoutResult, setCheckoutResult] = useState(null)
   const [pendingPayment, setPendingPayment] = useState(null)
+  const [countdown, setCountdown] = useState(30)
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isCheckingOut, setIsCheckingOut] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [checkoutError, setCheckoutError] = useState('')
 
-  const loadCatalog = useCallback(async () => {
-    setIsLoading(true)
+  const loadCatalog = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setIsLoading(true)
+    }
     setLoadError('')
 
     try {
@@ -313,61 +304,29 @@ export default function PublicShop() {
     } catch (error) {
       setLoadError(getApiErrorMessage(error, t('socialHub.unavailable')))
     } finally {
-      setIsLoading(false)
+      if (!silent) {
+        setIsLoading(false)
+      }
     }
   }, [slug, t])
+
+  const refreshCatalogSilently = useCallback(() => loadCatalog({ silent: true }), [loadCatalog])
+  useAutoRefresh(refreshCatalogSilently, ['products'])
 
   useEffect(() => {
     loadCatalog()
   }, [loadCatalog])
 
   useEffect(() => {
-    const paymentReference = searchParams.get('payment_reference') || searchParams.get('tx_ref')
-
-    if (!paymentReference) {
-      return undefined
-    }
-
-    let isMounted = true
-
-    publicShopService.getPayment(paymentReference)
-      .then((payment) => {
-        if (!isMounted) return
-
-        setCheckout((currentCheckout) => ({
-          ...currentCheckout,
-          district: payment.customer?.district || currentCheckout.district,
-          payment_method: payment.payment_method,
-        }))
-
-        if (payment.payment_status === 'paid') {
-          setCheckoutResult(payment)
-        } else if (payment.payment_status === 'failed') {
-          setCheckoutError(t('socialHub.paymentFailed'))
-          setIsCheckoutOpen(true)
-        } else {
-          setPendingPayment(payment)
-          setIsCheckoutOpen(true)
-        }
-        setSearchParams({}, { replace: true })
-      })
-      .catch((paymentError) => {
-        if (isMounted) {
-          setCheckoutError(getApiErrorMessage(paymentError, t('socialHub.paymentError')))
-        }
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [searchParams, setSearchParams, t])
-
-  useEffect(() => {
     if (!pendingPayment?.payment_reference) {
       return undefined
     }
 
+    setCountdown(pendingPayment.confirmation_timeout_seconds || 30)
     const paymentSocket = createPaymentSocket(pendingPayment.payment_reference)
+    const countdownId = window.setInterval(() => {
+      setCountdown((currentCountdown) => Math.max(0, currentCountdown - 1))
+    }, 1000)
 
     const handlePaymentConfirmed = (payload = {}) => {
       if (payload.payment_reference !== pendingPayment.payment_reference) {
@@ -384,21 +343,15 @@ export default function PublicShop() {
     }
 
     paymentSocket.on('payment_confirmed', handlePaymentConfirmed)
-    const handlePaymentFailed = () => {
-      setPendingPayment(null)
-      setCheckoutError(t('socialHub.paymentFailed'))
-      loadCatalog()
-    }
-    paymentSocket.on('payment_failed', handlePaymentFailed)
     paymentSocket.on('connect_error', () => setCheckoutError(t('socialHub.realtimeError')))
     paymentSocket.connect()
 
     return () => {
+      window.clearInterval(countdownId)
       paymentSocket.off('payment_confirmed', handlePaymentConfirmed)
-      paymentSocket.off('payment_failed', handlePaymentFailed)
       paymentSocket.disconnect()
     }
-  }, [loadCatalog, pendingPayment, t])
+  }, [pendingPayment, t])
 
   const cartItems = useMemo(() => (catalog?.products || [])
     .filter((product) => cart[product.id] > 0)
@@ -444,7 +397,6 @@ export default function PublicShop() {
         cart: cartItems.map((item) => ({ product_id: item.id, quantity: item.quantity })),
         customer: {
           name: checkout.name.trim(),
-          email: checkout.email.trim(),
           phone: checkout.phone.trim(),
           district: checkout.district,
         },
@@ -460,9 +412,7 @@ export default function PublicShop() {
         }),
       } : currentCatalog)
 
-      if (data.requires_redirect && data.payment_link) {
-        window.location.assign(data.payment_link)
-      } else if (data.requires_confirmation) {
+      if (data.requires_confirmation) {
         setPendingPayment(data)
       } else {
         setCheckoutResult(data)
@@ -486,7 +436,7 @@ export default function PublicShop() {
               <p className="text-[10px] font-medium uppercase text-amber-600 dark:text-amber-400">SocialHub Shop</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5"><LanguageSwitcher /><ThemeToggle /></div>
+          <div className="flex items-center gap-1.5">{installControl}<LanguageSwitcher /><ThemeToggle /></div>
         </div>
       </header>
 
@@ -495,7 +445,7 @@ export default function PublicShop() {
           <div className="grid min-h-[60dvh] place-items-center"><LoaderCircle aria-hidden="true" className="animate-spin text-amber-500" size={24} /></div>
         ) : loadError ? (
           <div className="grid min-h-[60dvh] place-items-center text-center">
-            <div><AlertTriangle aria-hidden="true" className="mx-auto text-rose-500" size={25} /><p className="mt-3 text-sm text-zinc-500">{loadError}</p><button type="button" onClick={loadCatalog} className="mt-5 text-sm font-semibold text-amber-600 dark:text-amber-400">{t('socialHub.retry')}</button></div>
+            <div><AlertTriangle aria-hidden="true" className="mx-auto text-rose-500" size={25} /><p className="mt-3 text-sm text-zinc-500">{loadError}</p><button type="button" onClick={() => loadCatalog()} className="mt-5 text-sm font-semibold text-amber-600 dark:text-amber-400">{t('socialHub.retry')}</button></div>
           </div>
         ) : (
           <>
@@ -562,6 +512,7 @@ export default function PublicShop() {
             amount={cartTotal || pendingPayment?.order?.total || 0}
             cartItems={cartItems}
             checkout={checkout}
+            countdown={countdown}
             error={checkoutError}
             isLoading={isCheckingOut}
             language={language}

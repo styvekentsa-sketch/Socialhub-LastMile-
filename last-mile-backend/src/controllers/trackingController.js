@@ -60,20 +60,6 @@ const DRIVER_STATUS_TRANSITIONS = {
   in_transit: new Set(['delivered', 'failed'])
 };
 
-const normalizeCoordinate = (value, min, max) => {
-  if (value === undefined || value === null || value === '') {
-    return undefined;
-  }
-
-  const numberValue = Number(value);
-
-  if (!Number.isFinite(numberValue) || numberValue < min || numberValue > max) {
-    return undefined;
-  }
-
-  return numberValue;
-};
-
 const canReadOrderHistory = (user, order) => {
   if (user.role === 'admin') {
     return true;
@@ -88,22 +74,6 @@ const canReadOrderHistory = (user, order) => {
   }
 
   return false;
-};
-
-export const updateLocation = async (req, res) => {
-  try {
-    const latitude = normalizeCoordinate(req.body.latitude, -90, 90);
-    const longitude = normalizeCoordinate(req.body.longitude, -180, 180);
-
-    if (latitude === undefined || longitude === undefined) {
-      return res.status(400).json({ error: 'La latitude et la longitude sont requises.' });
-    }
-
-    await TrackingModel.updatePosition(req.user.id, latitude, longitude);
-    return res.status(200).json({ message: 'Position mise a jour avec succes.' });
-  } catch (error) {
-    return res.status(500).json({ error: 'Erreur serveur.' });
-  }
 };
 
 export const getOrderHistory = async (req, res, next) => {

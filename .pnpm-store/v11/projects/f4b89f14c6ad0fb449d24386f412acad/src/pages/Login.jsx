@@ -44,7 +44,7 @@ const itemVariants = {
   },
 }
 
-export default function Login() {
+export default function Login({ installControl }) {
   const navigate = useNavigate()
   const { authenticate, isAuthenticated, user } = useAuth()
   const { t } = useLanguage()
@@ -127,6 +127,7 @@ export default function Login() {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
+              {installControl}
               <LanguageSwitcher />
               <ThemeToggle />
             </div>

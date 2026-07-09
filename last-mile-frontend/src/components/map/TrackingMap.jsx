@@ -1,11 +1,24 @@
 import { divIcon } from 'leaflet'
 import { motion } from 'framer-motion'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { useLanguage } from '../../context/languageContext.js'
 
 const DOUALA_CENTER = [4.0511, 9.7679]
-const TILE_URL = import.meta.env.VITE_MAP_TILE_URL
+const TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+const MAX_GPS_ACCURACY_METERS = Number(import.meta.env.VITE_GPS_MAX_ACCURACY_METERS) || 100
+const MAX_POSITION_AGE_MS = 2 * 60 * 1000
+
+const parseCoordinate = (value, min, max) => {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+
+  const parsedValue = Number(value)
+  return Number.isFinite(parsedValue) && parsedValue >= min && parsedValue <= max
+    ? parsedValue
+    : null
+}
 
 const driverIcon = divIcon({
   className: 'map-div-icon',
@@ -68,13 +81,52 @@ function TrackingBounds({ destination, driver }) {
 
 export default function TrackingMap({ order }) {
   const { t } = useLanguage()
-  const destination = Number.isFinite(Number(order?.latitude)) && Number.isFinite(Number(order?.longitude))
-    ? [Number(order.latitude), Number(order.longitude)]
+  const [currentTime, setCurrentTime] = useState(Date.now())
+  const destinationLatitude = parseCoordinate(order?.latitude, -90, 90)
+  const destinationLongitude = parseCoordinate(order?.longitude, -180, 180)
+  const driverLatitude = parseCoordinate(order?.driver_latitude, -90, 90)
+  const driverLongitude = parseCoordinate(order?.driver_longitude, -180, 180)
+  const hasAccuracy = order?.driver_position_accuracy !== null
+    && order?.driver_position_accuracy !== undefined
+    && order?.driver_position_accuracy !== ''
+  const hasCapturedAt = Boolean(order?.driver_position_captured_at)
+  const driverAccuracy = hasAccuracy ? Number(order.driver_position_accuracy) : Number.NaN
+  const capturedAt = hasCapturedAt ? Date.parse(order.driver_position_captured_at) : Number.NaN
+  const positionAge = currentTime - capturedAt
+  const hasReliableDriverPosition = Boolean(order?.driver_id)
+    && driverLatitude !== null
+    && driverLongitude !== null
+    && Number.isFinite(driverAccuracy)
+    && driverAccuracy >= 0
+    && driverAccuracy <= MAX_GPS_ACCURACY_METERS
+    && Number.isFinite(capturedAt)
+    && positionAge >= -30000
+    && positionAge <= MAX_POSITION_AGE_MS
+  const destination = destinationLatitude !== null && destinationLongitude !== null
+    ? [destinationLatitude, destinationLongitude]
     : null
-  const driver = Number.isFinite(Number(order?.driver_latitude)) && Number.isFinite(Number(order?.driver_longitude))
-    ? [Number(order.driver_latitude), Number(order.driver_longitude)]
+  const driver = hasReliableDriverPosition
+    ? [driverLatitude, driverLongitude]
     : null
+  const driverName = order?.driver_name || t('roles.driver')
   const center = driver || destination || DOUALA_CENTER
+
+  useEffect(() => {
+    setCurrentTime(Date.now())
+
+    if (!Number.isFinite(capturedAt)) {
+      return undefined
+    }
+
+    const remainingFreshness = capturedAt + MAX_POSITION_AGE_MS - Date.now()
+
+    if (remainingFreshness <= 0) {
+      return undefined
+    }
+
+    const timeoutId = window.setTimeout(() => setCurrentTime(Date.now()), remainingFreshness + 50)
+    return () => window.clearTimeout(timeoutId)
+  }, [capturedAt])
 
   return (
     <section className="last-mile-map relative min-h-[390px] overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950" aria-label={t('tracking.mapLabel')}>
@@ -102,7 +154,9 @@ export default function TrackingMap({ order }) {
         )}
         {driver && (
           <Marker position={driver} icon={driverIcon} zIndexOffset={20}>
-            <Tooltip className="map-tooltip" direction="top" offset={[0, -18]}>{t('tracking.driverPosition')}</Tooltip>
+            <Tooltip className="map-tooltip" direction="top" offset={[0, -18]}>
+              {t('tracking.driverPositionNamed', { name: driverName })}
+            </Tooltip>
           </Marker>
         )}
         {driver && destination && (
@@ -124,8 +178,17 @@ export default function TrackingMap({ order }) {
             {driver && <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-70" />}
             <span className={`relative inline-flex size-1.5 rounded-full ${driver ? 'bg-emerald-500' : 'bg-zinc-600'}`} />
           </span>
-          {t(driver ? 'tracking.activePosition' : 'tracking.waitingPosition')}
+          {driver
+            ? t('tracking.activePositionNamed', { name: driverName })
+            : order?.driver_id
+              ? t('tracking.waitingPositionNamed', { name: driverName })
+              : t('tracking.noDriverAssigned')}
         </p>
+        {driver && (
+          <p className="mt-1 font-mono text-[10px] text-zinc-500">
+            {t('tracking.positionAccuracy', { accuracy: Math.round(driverAccuracy) })}
+          </p>
+        )}
       </motion.div>
     </section>
   )

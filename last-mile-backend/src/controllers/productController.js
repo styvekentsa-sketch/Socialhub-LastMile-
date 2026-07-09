@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { getIO } from '../config/socket.js';
 import ProductModel from '../models/productModel.js';
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
@@ -46,6 +47,16 @@ const parsePrice = (value) => {
   return Number.isFinite(price) && price > 0 && price <= 100000000
     ? Math.round(price * 100) / 100
     : null;
+};
+
+const emitProductChange = (merchantId, eventName, product) => {
+  getIO()
+    .to(`merchant_${merchantId}`)
+    .to('admins')
+    .emit(eventName, {
+      merchant_id: merchantId,
+      product
+    });
 };
 
 const decodeProductImage = (imageData) => {
@@ -124,6 +135,8 @@ export const createProduct = async (req, res, next) => {
       stock
     );
 
+    emitProductChange(req.user.id, 'product_created', product);
+
     return res.status(201).json({ success: true, product });
   } catch (error) {
     if (storedImagePath) {
@@ -155,6 +168,8 @@ export const updateProductStock = async (req, res, next) => {
       throw createHttpError('Produit introuvable.', 404);
     }
 
+    emitProductChange(req.user.id, 'product_updated', product);
+
     return res.status(200).json({ success: true, product });
   } catch (error) {
     return next(error);
@@ -176,6 +191,7 @@ export const deleteProduct = async (req, res, next) => {
     }
 
     await removeStoredProductImage(product.image_url);
+    emitProductChange(req.user.id, 'product_deleted', { id: productId });
     return res.status(200).json({ success: true, productId });
   } catch (error) {
     return next(error);

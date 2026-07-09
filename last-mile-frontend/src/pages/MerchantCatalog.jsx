@@ -16,6 +16,7 @@ import { useCallback, useRef, useState, useEffect } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/auth.js'
 import { useLanguage } from '../context/languageContext.js'
+import useAutoRefresh from '../hooks/useAutoRefresh.js'
 import { getApiErrorMessage } from '../services/api.js'
 import productService from '../services/productService.js'
 import { resolveAvatarUrl } from '../utils/avatar.js'
@@ -126,8 +127,10 @@ export default function MerchantCatalog() {
   const [formError, setFormError] = useState('')
   const [toast, setToast] = useState(null)
 
-  const loadProducts = useCallback(async () => {
-    setIsLoading(true)
+  const loadProducts = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setIsLoading(true)
+    }
     setError('')
 
     try {
@@ -136,9 +139,14 @@ export default function MerchantCatalog() {
     } catch (loadError) {
       setError(getApiErrorMessage(loadError, t('catalogManagement.loadError')))
     } finally {
-      setIsLoading(false)
+      if (!silent) {
+        setIsLoading(false)
+      }
     }
   }, [t])
+
+  const refreshProductsSilently = useCallback(() => loadProducts({ silent: true }), [loadProducts])
+  useAutoRefresh(refreshProductsSilently, ['products'])
 
   useEffect(() => {
     loadProducts()
@@ -246,7 +254,7 @@ export default function MerchantCatalog() {
       {isLoading ? (
         <div className="grid min-h-72 place-items-center"><LoaderCircle aria-hidden="true" className="animate-spin text-amber-500" size={23} /></div>
       ) : error ? (
-        <div className="grid min-h-72 place-items-center text-center"><div><AlertTriangle aria-hidden="true" className="mx-auto text-rose-500" size={23} /><p className="mt-3 text-sm text-zinc-500">{error}</p><button type="button" onClick={loadProducts} className="mt-4 text-sm font-semibold text-amber-600 dark:text-amber-400">{t('catalogManagement.retry')}</button></div></div>
+        <div className="grid min-h-72 place-items-center text-center"><div><AlertTriangle aria-hidden="true" className="mx-auto text-rose-500" size={23} /><p className="mt-3 text-sm text-zinc-500">{error}</p><button type="button" onClick={() => loadProducts()} className="mt-4 text-sm font-semibold text-amber-600 dark:text-amber-400">{t('catalogManagement.retry')}</button></div></div>
       ) : products.length === 0 ? (
         <div className="grid min-h-72 place-items-center rounded-lg border border-zinc-200 bg-white text-center dark:border-zinc-800 dark:bg-zinc-900"><div><PackageOpen aria-hidden="true" className="mx-auto text-zinc-400" size={28} /><p className="mt-3 text-sm text-zinc-500">{t('catalogManagement.empty')}</p></div></div>
       ) : (

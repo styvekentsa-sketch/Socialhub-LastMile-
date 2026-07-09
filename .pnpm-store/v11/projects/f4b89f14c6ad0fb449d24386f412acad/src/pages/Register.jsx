@@ -75,7 +75,7 @@ function AuthToast({ toast, onClose, t }) {
   )
 }
 
-export default function Register() {
+export default function Register({ installControl }) {
   const navigate = useNavigate()
   const { isAuthenticated, user } = useAuth()
   const { t } = useLanguage()
@@ -183,6 +183,7 @@ export default function Register() {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
+              {installControl}
               <LanguageSwitcher />
               <ThemeToggle />
             </div>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSocket } from '../context/socketContext.js'
 import orderService from '../services/orderService.js'
+import useAutoRefresh from './useAutoRefresh.js'
 
 export default function useDriverOrders() {
   const { socket } = useSocket()
@@ -25,6 +26,8 @@ export default function useDriverOrders() {
   useEffect(() => {
     refresh()
   }, [refresh])
+
+  useAutoRefresh(refresh, ['orders'])
 
   useEffect(() => {
     const handleAssignment = () => refresh()

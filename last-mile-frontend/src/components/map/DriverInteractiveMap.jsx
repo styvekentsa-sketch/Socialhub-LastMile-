@@ -6,7 +6,18 @@ import { MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { useLanguage } from '../../context/languageContext.js'
 
 const DOUALA_CENTER = [4.0511, 9.7679]
-const TILE_URL = import.meta.env.VITE_MAP_TILE_URL
+const TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+
+const parseCoordinate = (value, min, max) => {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+
+  const parsedValue = Number(value)
+  return Number.isFinite(parsedValue) && parsedValue >= min && parsedValue <= max
+    ? parsedValue
+    : null
+}
 
 const driverIcon = divIcon({
   className: 'map-div-icon',
@@ -37,34 +48,58 @@ const deliveryIcon = divIcon({
 
 function MapFocus({ deliveryPosition, driverPosition }) {
   const map = useMap()
-  const [deliveryLatitude, deliveryLongitude] = deliveryPosition
-  const [driverLatitude, driverLongitude] = driverPosition
+  const deliveryLatitude = deliveryPosition?.[0]
+  const deliveryLongitude = deliveryPosition?.[1]
+  const driverLatitude = driverPosition?.[0]
+  const driverLongitude = driverPosition?.[1]
 
   useEffect(() => {
-    map.flyToBounds([
-      [driverLatitude, driverLongitude],
-      [deliveryLatitude, deliveryLongitude],
-    ], {
-      animate: true,
-      duration: 0.65,
-      maxZoom: 14,
-      padding: [52, 52],
-    })
+    if (Number.isFinite(driverLatitude) && Number.isFinite(driverLongitude)
+      && Number.isFinite(deliveryLatitude) && Number.isFinite(deliveryLongitude)) {
+      map.flyToBounds([
+        [driverLatitude, driverLongitude],
+        [deliveryLatitude, deliveryLongitude],
+      ], {
+        animate: true,
+        duration: 0.65,
+        maxZoom: 14,
+        padding: [52, 52],
+      })
+      return
+    }
+
+    if (Number.isFinite(driverLatitude) && Number.isFinite(driverLongitude)) {
+      map.setView([driverLatitude, driverLongitude], 16, { animate: true })
+      return
+    }
+
+    if (Number.isFinite(deliveryLatitude) && Number.isFinite(deliveryLongitude)) {
+      map.setView([deliveryLatitude, deliveryLongitude], 14, { animate: true })
+      return
+    }
+
+    map.setView(DOUALA_CENTER, 13, { animate: true })
   }, [deliveryLatitude, deliveryLongitude, driverLatitude, driverLongitude, map])
 
   return null
 }
 
-export default function DriverInteractiveMap({ error, isUpdating, onStatusChange, order, position }) {
+export default function DriverInteractiveMap({ error, isUpdating, locationIssue, onStatusChange, order, position, positionAccuracy }) {
   const { t } = useLanguage()
   const mapRef = useRef(null)
-  const driverPosition = position || DOUALA_CENTER
-  const hasDeliveryCoordinates = Number.isFinite(Number(order?.latitude)) && Number.isFinite(Number(order?.longitude))
+  const driverLatitude = parseCoordinate(position?.[0], -90, 90)
+  const driverLongitude = parseCoordinate(position?.[1], -180, 180)
+  const deliveryLatitude = parseCoordinate(order?.latitude, -90, 90)
+  const deliveryLongitude = parseCoordinate(order?.longitude, -180, 180)
+  const driverPosition = driverLatitude !== null && driverLongitude !== null
+    ? [driverLatitude, driverLongitude]
+    : null
   const deliveryPosition = useMemo(() => (
-    hasDeliveryCoordinates
-      ? [Number(order.latitude), Number(order.longitude)]
-      : DOUALA_CENTER
-  ), [hasDeliveryCoordinates, order?.latitude, order?.longitude])
+    deliveryLatitude !== null && deliveryLongitude !== null
+      ? [deliveryLatitude, deliveryLongitude]
+      : null
+  ), [deliveryLatitude, deliveryLongitude])
+  const mapCenter = driverPosition || deliveryPosition || DOUALA_CENTER
 
   const runStatusChange = async (status) => {
     try {
@@ -146,7 +181,7 @@ export default function DriverInteractiveMap({ error, isUpdating, onStatusChange
     >
       <MapContainer
         ref={mapRef}
-        center={position || (hasDeliveryCoordinates ? deliveryPosition : DOUALA_CENTER)}
+        center={mapCenter}
         zoom={13}
         minZoom={3}
         maxZoom={19}
@@ -161,13 +196,13 @@ export default function DriverInteractiveMap({ error, isUpdating, onStatusChange
           url={TILE_URL}
           subdomains="abcd"
         />
-        {position && hasDeliveryCoordinates && <MapFocus deliveryPosition={deliveryPosition} driverPosition={driverPosition} />}
-        {position && (
+        <MapFocus deliveryPosition={deliveryPosition} driverPosition={driverPosition} />
+        {driverPosition && (
           <Marker position={driverPosition} icon={driverIcon} zIndexOffset={20}>
             <Tooltip className="map-tooltip" direction="top" offset={[0, -14]}>{t('map.driverPosition')}</Tooltip>
           </Marker>
         )}
-        {hasDeliveryCoordinates && (
+        {deliveryPosition && (
           <Marker key={`${deliveryPosition[0]}-${deliveryPosition[1]}`} position={deliveryPosition} icon={deliveryIcon} zIndexOffset={10}>
             <Tooltip className="map-tooltip" direction="top" offset={[0, -28]}>{t('map.deliveryPoint')}</Tooltip>
           </Marker>
@@ -217,7 +252,14 @@ export default function DriverInteractiveMap({ error, isUpdating, onStatusChange
             </div>
           </div>
         </div>
-        {error && <p className="mt-2 text-xs text-rose-400">{typeof error === 'string' ? error : t('driverActions.updateError')}</p>}
+        <p className={`mt-2 text-xs ${locationIssue ? 'text-rose-400' : driverPosition ? 'text-emerald-400' : 'text-zinc-500'}`}>
+          {locationIssue
+            ? t(`map.locationErrors.${locationIssue}`, { accuracy: Math.round(positionAccuracy || 0) })
+            : driverPosition
+              ? t('map.gpsActive', { accuracy: Math.round(positionAccuracy || 0) })
+              : t('map.waitingGps')}
+        </p>
+        {error && <p className="mt-2 text-xs text-rose-400">{t('driverActions.updateError')}</p>}
         {renderActions()}
       </motion.div>
     </section>

@@ -10,11 +10,6 @@ const publicShopService = {
     const response = await api.post('/api/public/checkout', checkoutData)
     return response.data
   },
-
-  async getPayment(paymentReference) {
-    const response = await api.get(`/api/public/payments/${encodeURIComponent(paymentReference)}`)
-    return response.data
-  },
 }
 
 export default publicShopService
