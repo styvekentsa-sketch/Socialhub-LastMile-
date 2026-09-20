@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { PublicShopModel } from '../models/publicShopModel.js';
 import { initiateCardPayment, initiateMobileMoneyPayment } from '../services/flutterwaveService.js';
+import { emitPaymentConfirmed } from '../services/paymentService.js';
 
 const PAYMENT_METHODS = new Set(['orange_money', 'mtn_momo', 'card']);
 const MOBILE_MONEY_METHODS = new Set(['orange_money', 'mtn_momo']);
@@ -23,6 +24,11 @@ const createHttpError = (message, statusCode) => {
 };
 
 const normalizeSlug = (value) => typeof value === 'string' ? value.trim().toLowerCase() : '';
+
+const createFallbackEmail = (phone) => {
+  const digits = String(phone || '').replace(/\D/g, '') || randomUUID().replace(/-/g, '');
+  return `checkout-${digits.slice(0, 32)}@lastmile.local`;
+};
 
 const normalizeCart = (cart) => {
   if (!Array.isArray(cart) || cart.length === 0 || cart.length > 20) {
@@ -103,11 +109,14 @@ export const checkout = async (req, res, next) => {
       || customer.name.trim().length > 255
       || typeof customer.phone !== 'string'
       || !PHONE_PATTERN.test(customer.phone.trim())
-      || typeof customer.email !== 'string'
-      || !EMAIL_PATTERN.test(customer.email.trim())
-      || customer.email.trim().length > 255
     ) {
       throw createHttpError('Informations de livraison invalides.', 400);
+    }
+
+    const submittedEmail = typeof customer.email === 'string' ? customer.email.trim().toLowerCase() : '';
+
+    if (submittedEmail && (!EMAIL_PATTERN.test(submittedEmail) || submittedEmail.length > 255)) {
+      throw createHttpError('Email de livraison invalide.', 400);
     }
 
     if (!delivery) {
@@ -122,9 +131,13 @@ export const checkout = async (req, res, next) => {
     paymentReference = randomUUID();
     const paymentStatus = 'pending';
     const normalizedCustomer = {
-      email: customer.email.trim().toLowerCase(),
+      email: submittedEmail || null,
       name: customer.name.trim(),
       phone: customer.phone.trim()
+    };
+    const paymentCustomer = {
+      ...normalizedCustomer,
+      email: normalizedCustomer.email || createFallbackEmail(normalizedCustomer.phone)
     };
     const result = await PublicShopModel.checkout({
       cart: normalizeCart(req.body.cart),
@@ -140,7 +153,7 @@ export const checkout = async (req, res, next) => {
     if (isMobileMoney) {
       providerResult = await initiateMobileMoneyPayment({
         amount: result.total,
-        customer: normalizedCustomer,
+        customer: paymentCustomer,
         paymentMethod,
         paymentReference,
         shopSlug
@@ -148,7 +161,7 @@ export const checkout = async (req, res, next) => {
     } else {
       providerResult = await initiateCardPayment({
         amount: result.total,
-        customer: normalizedCustomer,
+        customer: paymentCustomer,
         paymentReference,
         shopSlug
       });
@@ -160,9 +173,20 @@ export const checkout = async (req, res, next) => {
       providerResult.redirectUrl
     );
 
+    if (providerResult.confirmed) {
+      const confirmedPayment = await PublicShopModel.confirmPayment(
+        paymentReference,
+        providerResult.providerTransactionId
+      );
+
+      if (confirmedPayment) {
+        emitPaymentConfirmed(confirmedPayment, paymentReference);
+      }
+    }
+
     return res.status(201).json({
       success: true,
-      payment_status: paymentStatus,
+      payment_status: providerResult.confirmed ? 'paid' : paymentStatus,
       payment_method: paymentMethod,
       payment_reference: paymentReference,
       requires_confirmation: true,

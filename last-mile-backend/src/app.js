@@ -41,6 +41,9 @@ app.use(express.json({
   }
 }));
 app.use('/uploads', express.static(`${publicDirectory}uploads`, { maxAge: '1d' }));
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 app.use('/api/public', publicRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/products', productRoutes);

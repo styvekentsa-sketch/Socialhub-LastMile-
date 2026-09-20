@@ -1,5 +1,9 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
+const isDevelopmentPaymentFallbackEnabled = () => (
+  process.env.NODE_ENV !== 'production' && process.env.FLW_LOCAL_FALLBACK !== 'false'
+);
+
 const getConfig = () => {
   const secretKey = process.env.FLW_SECRET_KEY?.trim();
   const secretHash = process.env.FLW_SECRET_HASH?.trim();
@@ -15,6 +19,20 @@ const getConfig = () => {
 
   return { apiUrl: apiUrl.replace(/\/$/, ''), backendUrl, frontendUrl, secretHash, secretKey };
 };
+
+const hasPaymentGatewayConfig = () => Boolean(
+  process.env.FLW_SECRET_KEY?.trim()
+  && process.env.FLW_SECRET_HASH?.trim()
+  && process.env.FLW_API_URL?.trim()
+  && process.env.FRONTEND_URL?.trim()
+  && process.env.BACKEND_URL?.trim()
+);
+
+const createLocalPaymentResult = (paymentReference) => ({
+  confirmed: true,
+  providerTransactionId: `local_${paymentReference}`,
+  redirectUrl: null
+});
 
 const normalizePhone = (phone) => {
   let digits = String(phone || '').replace(/\D/g, '');
@@ -73,6 +91,11 @@ const requestFlutterwave = async (path, options = {}) => {
 };
 
 export const initiateMobileMoneyPayment = async ({ amount, customer, paymentMethod, paymentReference, shopSlug }) => {
+  if (!hasPaymentGatewayConfig() && isDevelopmentPaymentFallbackEnabled()) {
+    normalizePhone(customer.phone);
+    return createLocalPaymentResult(paymentReference);
+  }
+
   const config = getConfig();
   const data = await requestFlutterwave('/charges?type=mobile_money_franco', {
     method: 'POST',
@@ -99,6 +122,11 @@ export const initiateMobileMoneyPayment = async ({ amount, customer, paymentMeth
 };
 
 export const initiateCardPayment = async ({ amount, customer, paymentReference, shopSlug }) => {
+  if (!hasPaymentGatewayConfig() && isDevelopmentPaymentFallbackEnabled()) {
+    normalizePhone(customer.phone);
+    return createLocalPaymentResult(paymentReference);
+  }
+
   const { frontendUrl } = getConfig();
   const data = await requestFlutterwave('/payments', {
     method: 'POST',
