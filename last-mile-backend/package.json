@@ -6,7 +6,12 @@
   "scripts": {
     "dev": "nodemon src/app.js",
     "start": "node src/app.js",
-    "seed:products": "node scripts/seedProducts.js"
+    "seed:products": "node scripts/seedProducts.js",
+    "seed:demo": "node scripts/seed-demo.js",
+    "test:whatsapp-e2e": "node scripts/test-whatsapp-e2e.mjs",
+    "test:notifications": "node scripts/test-notifications.mjs",
+    "migrate": "node scripts/run-migration.js",
+    "test:marketplace": "node scripts/test-marketplace.mjs"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

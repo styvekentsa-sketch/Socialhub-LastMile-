@@ -1,4 +1,5 @@
 import { getIO } from '../config/socket.js';
+import { emitOrderEvent, ORDER_EVENTS } from '../events/orderEvents.js';
 
 const createOrderPayload = (payment) => ({
   order_id: payment.orderId,
@@ -27,6 +28,10 @@ export const emitPaymentConfirmed = (payment, paymentReference) => {
     ...payload,
     payment_reference: paymentReference
   });
+
+  // Appele une seule fois par paiement : confirmPayment ne renvoie une commande
+  // que pour la transition atomique pending -> paid (webhook et confirmation directe exclusifs).
+  emitOrderEvent(ORDER_EVENTS.PAYMENT_CONFIRMED, { orderId: payment.orderId });
   return payload;
 };
 

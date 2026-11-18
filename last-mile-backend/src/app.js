@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import pool from './config/db.js';
 import { initializeSocket } from './config/socket.js';
+import { initializeNotificationChannels } from './services/notifications/index.js';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
@@ -58,6 +59,7 @@ app.use(globalErrorHandler);
 
 const httpServer = createServer(app);
 initializeSocket(httpServer);
+initializeNotificationChannels();
 
 const startServer = async () => {
   try {

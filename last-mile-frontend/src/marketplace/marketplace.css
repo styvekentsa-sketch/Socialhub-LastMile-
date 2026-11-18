@@ -1,0 +1,110 @@
+/*
+ * Portail public Last-Mile.
+ * ISOLATION : toutes les regles sont prefixees par .mk-root ou .mk-.
+ * Une fois charge, ce fichier reste actif dans toute l'application (fonctionnement de Vite) :
+ * aucun selecteur global n'est donc autorise ici. index.css n'est pas modifie.
+ *
+ * Palette : celle de Last-Mile (fond #09090b, bordures zinc-800, accent #f59e0b, Inter).
+ * Le portail reste sombre quel que soit le theme choisi dans l'espace prive.
+ *
+ * Les regles sont dans @layer components : les classes utilitaires Tailwind (couche « utilities »)
+ * restent prioritaires, comme dans le reste de l'application. Hors couche, ces regles les ecraseraient.
+ */
+
+@layer components {
+  .mk-root {
+    --mk-bg: #09090b;
+    --mk-surface: #111113;
+    --mk-surface-raised: #18181b;
+    --mk-border: #27272a;
+    --mk-border-strong: #3f3f46;
+    --mk-text: #f4f4f5;
+    --mk-text-muted: #a1a1aa;
+    --mk-text-subtle: #71717a;
+    --mk-accent: #f59e0b;
+
+    color-scheme: dark;
+    background-color: var(--mk-bg);
+    color: var(--mk-text);
+    font-family: var(--font-sans);
+    font-weight: 400;
+    line-height: 1.5;
+  }
+
+  /* Grille : largeur maximale 1200 px, marges laterales 16 px puis 24 px */
+  .mk-container {
+    width: 100%;
+    max-width: 1200px;
+    margin-inline: auto;
+    padding-inline: 16px;
+  }
+
+  @media (min-width: 768px) {
+    .mk-container {
+      padding-inline: 24px;
+    }
+  }
+
+  /* Champs de saisie du portail */
+  .mk-input {
+    height: 40px;
+    width: 100%;
+    border: 1px solid var(--mk-border);
+    border-radius: 8px;
+    background-color: var(--mk-bg);
+    padding-inline: 12px;
+    color: var(--mk-text);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 120ms ease;
+  }
+
+  .mk-input::placeholder {
+    color: var(--mk-text-subtle);
+  }
+
+  .mk-input:hover {
+    border-color: var(--mk-border-strong);
+  }
+
+  .mk-input:focus {
+    border-color: var(--mk-accent);
+  }
+
+  /* Liste deroulante : fleche discrete, sans style natif */
+  .mk-select {
+    appearance: none;
+    padding-right: 36px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+
+  .mk-select option {
+    background-color: var(--mk-surface-raised);
+    color: var(--mk-text);
+  }
+
+  /* Case a cocher aux couleurs du portail */
+  .mk-checkbox {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--mk-accent);
+  }
+
+  /* Defilement horizontal sans barre visible (barre de categories) */
+  .mk-scroll-x {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .mk-scroll-x::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Selection de texte */
+  .mk-root ::selection {
+    background-color: rgba(245, 158, 11, 0.35);
+    color: var(--mk-text);
+  }
+}

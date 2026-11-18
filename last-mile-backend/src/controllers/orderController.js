@@ -2,6 +2,7 @@
 import { OrderModel } from '../models/orderModel.js';
 import { TrackingModel } from '../models/trackingModel.js';
 import { getIO } from '../config/socket.js';
+import { emitOrderEvent, ORDER_EVENTS } from '../events/orderEvents.js';
 
 const VALID_STATUSES = new Set(['pending', 'assigned', 'picked_up', 'delivered', 'cancelled']);
 const FINAL_STATUSES = new Set(['delivered', 'cancelled']);
@@ -76,6 +77,9 @@ export const createOrder = async (req, res, next) => {
       .to(`merchant_${req.user.id}`)
       .to('admins')
       .emit('order_created', payload);
+
+    // Commandes creees par un marchand uniquement : les commandes boutique sont publiees via payment.confirmed.
+    emitOrderEvent(ORDER_EVENTS.ORDER_CREATED, { orderId });
 
     return res.status(201).json({ message: 'Commande creee avec succes.', orderId, order: payload });
   } catch (error) {

@@ -1,5 +1,6 @@
 // FILE: src/models/orderModel.js
 import pool from '../config/db.js';
+import { insertWithTrackingCode } from '../utils/trackingCode.js';
 
 export const OrderModel = {
   async create(merchantId, clientName, clientPhone, deliveryAddress, latitude, longitude, description = null) {
@@ -8,10 +9,10 @@ export const OrderModel = {
     try {
       await connection.beginTransaction();
 
-      const [result] = await connection.query(
-        'INSERT INTO orders (merchant_id, client_name, client_phone, delivery_address, latitude, longitude, description, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [merchantId, clientName, clientPhone, deliveryAddress, latitude, longitude, description, 'pending']
-      );
+      const { result: [result] } = await insertWithTrackingCode((trackingCode) => connection.query(
+        'INSERT INTO orders (tracking_code, merchant_id, client_name, client_phone, delivery_address, latitude, longitude, description, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [trackingCode, merchantId, clientName, clientPhone, deliveryAddress, latitude, longitude, description, 'pending']
+      ));
 
       await connection.query(
         'INSERT INTO delivery_logs (order_id, status, changed_by) VALUES (?, ?, ?)',

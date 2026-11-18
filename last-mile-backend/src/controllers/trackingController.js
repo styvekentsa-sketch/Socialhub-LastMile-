@@ -2,6 +2,7 @@
 import { OrderModel } from '../models/orderModel.js';
 import { TrackingModel } from '../models/trackingModel.js';
 import { getIO } from '../config/socket.js';
+import { emitOrderEvent, ORDER_EVENTS } from '../events/orderEvents.js';
 
 const VALID_STATUSES = new Set([
   'pending',
@@ -169,6 +170,8 @@ export const updateOrderStatus = async (req, res, next) => {
       .to(`driver_${order.driver_id}`)
       .to('admins')
       .emit('order_status_updated', payload);
+
+    emitOrderEvent(ORDER_EVENTS.ORDER_STATUS_CHANGED, { orderId, status });
 
     return res.status(200).json({
       message: 'Statut mis a jour avec succes.',

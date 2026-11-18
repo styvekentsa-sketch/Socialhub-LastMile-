@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { insertWithTrackingCode } from '../utils/trackingCode.js';
 
 const createDomainError = (message, statusCode) => {
   const error = new Error(message);
@@ -96,8 +97,9 @@ export const PublicShopModel = {
         .map((item) => `${item.quantity}x ${item.name}`)
         .join('; ');
       const total = totalCents / 100;
-      const [orderResult] = await connection.query(
+      const { result: [orderResult], trackingCode } = await insertWithTrackingCode((code) => connection.query(
         `INSERT INTO orders (
+          tracking_code,
           merchant_id,
           client_name,
           client_phone,
@@ -112,8 +114,9 @@ export const PublicShopModel = {
           payment_reference,
           payment_provider,
           checkout_total
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, 'flutterwave', ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, 'flutterwave', ?)`,
         [
+          code,
           shop.id,
           customer.name,
           customer.phone,
@@ -127,7 +130,7 @@ export const PublicShopModel = {
           paymentReference,
           total
         ]
-      );
+      ));
 
       await connection.query(
         'INSERT INTO delivery_logs (order_id, status, changed_by) VALUES (?, ?, ?)',
@@ -155,6 +158,7 @@ export const PublicShopModel = {
       return {
         items,
         orderId: orderResult.insertId,
+        trackingCode,
         paymentMethod,
         paymentReference,
         paymentStatus,
@@ -183,6 +187,7 @@ export const PublicShopModel = {
     const [rows] = await pool.query(
       `SELECT
         o.id AS order_id,
+        o.tracking_code,
         o.merchant_id,
         o.client_name,
         o.client_phone,

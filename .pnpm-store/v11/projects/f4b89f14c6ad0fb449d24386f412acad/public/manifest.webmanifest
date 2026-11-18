@@ -3,7 +3,7 @@
   "short_name": "Last Mile",
   "description": "Gestion des commandes, livraisons et chauffeurs en temps réel.",
   "id": "/",
-  "start_url": "/",
+  "start_url": "/espace",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",

@@ -195,7 +195,9 @@ export const checkout = async (req, res, next) => {
       order: {
         id: result.orderId,
         status: 'pending',
-        total: result.total
+        total: result.total,
+        // Code de suivi public : communique uniquement une fois la commande payee
+        tracking_code: providerResult.confirmed ? result.trackingCode : null
       },
       shop: {
         id: result.shop.id,
@@ -239,7 +241,9 @@ export const getPublicPayment = async (req, res, next) => {
       order: {
         id: payment.order_id,
         status: 'pending',
-        total: Number(payment.checkout_total)
+        total: Number(payment.checkout_total),
+        // Code de suivi public : communique uniquement une fois la commande payee
+        tracking_code: payment.payment_status === 'paid' ? payment.tracking_code : null
       },
       customer: {
         district: payment.delivery_address,

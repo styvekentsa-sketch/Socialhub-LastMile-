@@ -18,7 +18,7 @@ const getSslConfig = () => {
   };
 };
 
-const getDatabaseConfig = () => {
+export const getDatabaseConfig = () => {
   const databaseUrl = process.env.DATABASE_URL?.trim();
   const ssl = getSslConfig();
 

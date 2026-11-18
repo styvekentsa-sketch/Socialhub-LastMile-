@@ -25,6 +25,16 @@ const DeliveriesPage = lazy(() => import('./pages/WorkspacePages.jsx')
 const DriverMapPage = lazy(() => import('./pages/WorkspacePages.jsx')
   .then((module) => ({ default: module.DriverMapPage })))
 
+// Portail public (marketplace) : charge a la demande, dans ses propres fichiers JS et CSS,
+// pour ne pas alourdir l'espace prive.
+const MarketplaceLayout = lazy(() => import('./marketplace/MarketplaceLayout.jsx'))
+const MarketplaceHome = lazy(() => import('./marketplace/pages/HomePage.jsx'))
+const MarketplaceCatalog = lazy(() => import('./marketplace/pages/CatalogPage.jsx'))
+const MARKETPLACE_PATHS = new Set(['/', '/catalogue'])
+
+// Ecran d'attente du portail : meme fond que le portail, sans l'ecran de demarrage de l'espace prive
+const MarketplaceFallback = () => <div className="h-dvh bg-[#09090b]" />
+
 function DashboardRedirect() {
   const { user } = useAuth()
   return <Navigate to={ROLE_DASHBOARDS[user?.role] || '/login'} replace />
@@ -34,7 +44,7 @@ function AnimatedRoutes() {
   const location = useLocation()
   const routeKey = ['/login', '/register'].includes(location.pathname)
     ? location.pathname
-    : 'authenticated-app'
+    : MARKETPLACE_PATHS.has(location.pathname) ? 'marketplace' : 'authenticated-app'
 
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -42,8 +52,13 @@ function AnimatedRoutes() {
         <Route path="login" element={<Login installControl={<PwaInstallButton />} />} />
         <Route path="register" element={<Register installControl={<PwaInstallButton />} />} />
         <Route path="shop/:slug" element={<PublicShop installControl={<PwaInstallButton />} />} />
+        <Route element={<Suspense fallback={<MarketplaceFallback />}><MarketplaceLayout /></Suspense>}>
+          <Route index element={<MarketplaceHome />} />
+          <Route path="catalogue" element={<MarketplaceCatalog />} />
+        </Route>
         <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-          <Route index element={<DashboardRedirect />} />
+          {/* Ancienne entree « / » de l'espace prive : redirection vers le tableau de bord du role */}
+          <Route path="espace" element={<DashboardRedirect />} />
           <Route path="orders" element={<MerchantDashboard />} />
           <Route path="create" element={<CreateOrder />} />
           <Route path="catalog" element={<MerchantCatalog />} />

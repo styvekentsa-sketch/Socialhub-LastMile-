@@ -6,7 +6,9 @@ import { MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { useLanguage } from '../../context/languageContext.js'
 
 const DOUALA_CENTER = [4.0511, 9.7679]
-const TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+// Tuiles publiques OpenStreetMap (adresse officielle, sans sous-domaines a/b/c).
+// Politique d'usage : https://operations.osmfoundation.org/policies/tiles/
+const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 
 const parseCoordinate = (value, min, max) => {
   if (value === null || value === undefined || value === '') {
@@ -192,9 +194,8 @@ export default function DriverInteractiveMap({ error, isUpdating, locationIssue,
         className="z-0 size-full"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url={TILE_URL}
-          subdomains="abcd"
         />
         <MapFocus deliveryPosition={deliveryPosition} driverPosition={driverPosition} />
         {driverPosition && (

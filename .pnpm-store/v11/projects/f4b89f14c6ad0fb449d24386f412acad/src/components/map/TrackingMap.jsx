@@ -5,7 +5,9 @@ import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from 'reac
 import { useLanguage } from '../../context/languageContext.js'
 
 const DOUALA_CENTER = [4.0511, 9.7679]
-const TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+// Tuiles publiques OpenStreetMap (adresse officielle, sans sous-domaines a/b/c).
+// Politique d'usage : https://operations.osmfoundation.org/policies/tiles/
+const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 const MAX_GPS_ACCURACY_METERS = Number(import.meta.env.VITE_GPS_MAX_ACCURACY_METERS) || 100
 const MAX_POSITION_AGE_MS = 2 * 60 * 1000
 
@@ -142,9 +144,8 @@ export default function TrackingMap({ order }) {
         className="absolute inset-0 z-0 size-full"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url={TILE_URL}
-          subdomains="abcd"
         />
         <TrackingBounds destination={destination} driver={driver} />
         {destination && (
