@@ -5,6 +5,50 @@ Chaque entrée indique : ce qui a été fait, les fichiers touchés, comment cel
 
 ---
 
+## 2026-11-18 : Portail public e-commerce et logistique (marketplace + suivi de colis)
+
+**Statut** : ✅ validée (création du portail terminée)
+
+**Réalisé, en quatre étapes**
+
+1. **Audit et architecture** : routes publiques existantes, schéma des produits et des marchands, routeur du frontend ; plan validé (6 décisions : migration, suivi, panier par boutique, confidentialité des marchands, inscription présélectionnée, limiteur maison).
+2. **Backend** :
+   - migration `009` : code de suivi unique et non séquentiel `LM-XXXX-XXXX` sur chaque commande (rempli rétroactivement), description et catégorie des produits, index ;
+   - génération automatique du code à la création des commandes (marchand et boutique) ;
+   - 5 routes publiques (`/marketplace`, `/products`, `/products/:id`, `/shops`, `/tracking/:code`) ;
+   - limiteur de débit écrit en interne ; outil d'application des migrations (`npm run migrate`).
+3. **Frontend, première moitié** : mise en page publique (en-tête, pied de page), composants réutilisables, accueil `/` et catalogue `/catalogue` synchronisé avec l'URL.
+4. **Frontend, seconde moitié** :
+   - fiche produit `/produits/:id` : « Commander » ouvre le paiement de la boutique avec le panier pré-rempli ;
+   - annuaire `/boutiques` ;
+   - suivi `/suivi/:code` : anonymisé, actualisé toutes les 30 s ;
+   - pages « Devenir partenaire / vendeur / livreur » ;
+   - page 404 publique.
+
+**Garanties**
+- Aucun tableau de bord privé modifié. Le CSS du portail est isolé (préfixe `.mk-` et `@layer components`), et le portail est chargé à la demande.
+- Aucune donnée de contact des marchands dans la marketplace. Le suivi ne montre ni client, ni adresse, ni livreur, ni position GPS.
+- Le code de suivi est remis seulement après paiement et ne peut pas être deviné ; la consultation est limitée à 20 requêtes par minute.
+
+**Fichiers hors du portail touchés**
+- `App.jsx` : routes publiques. L'ancienne entrée `/` devient `/espace`, et une page 404 publique remplace les deux redirections génériques.
+- `manifest.webmanifest` : l'application installée s'ouvre sur `/espace`, donc toujours sur le tableau de bord.
+- `Register.jsx` : présélection du rôle via `?role=` (`merchant`/`driver`, alias `vendeur`/`livreur`).
+- `PublicShop.jsx` : arrivée depuis la fiche produit (`?produit=&quantite=`), qui remplit le panier et ouvre le paiement.
+
+**Vérification**
+- Compilation de production réussie, aucun avertissement d'analyse statique sur le portail.
+- `test:marketplace` 21/21, `test:notifications` 16/16, `test:whatsapp-e2e` 17/17.
+- 23 vérifications dans le navigateur, sur ordinateur et sur mobile, sans erreur JavaScript.
+- Les 13 captures de l'espace privé ont été regénérées sans erreur : aucune régression.
+
+**Reste à faire**
+- Nettoyer les comptes marchands de test de la base locale, qui apparaissent dans la marketplace.
+- Captures du portail public pour le guide illustré.
+- En production : stockage partagé pour le limiteur, et fournisseur de tuiles de carte dédié.
+
+---
+
 ## 2026-11-18 : Canaux Messenger et LinkedIn, PowerPoint final, base de démonstration propre
 
 **Statut** : ✅ validée (Messenger et LinkedIn testés contre un faux fournisseur uniquement)

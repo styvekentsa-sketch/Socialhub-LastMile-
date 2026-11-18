@@ -30,7 +30,14 @@ const DriverMapPage = lazy(() => import('./pages/WorkspacePages.jsx')
 const MarketplaceLayout = lazy(() => import('./marketplace/MarketplaceLayout.jsx'))
 const MarketplaceHome = lazy(() => import('./marketplace/pages/HomePage.jsx'))
 const MarketplaceCatalog = lazy(() => import('./marketplace/pages/CatalogPage.jsx'))
-const MARKETPLACE_PATHS = new Set(['/', '/catalogue'])
+const MarketplaceProduct = lazy(() => import('./marketplace/pages/ProductPage.jsx'))
+const MarketplaceShops = lazy(() => import('./marketplace/pages/ShopsPage.jsx'))
+const MarketplaceTracking = lazy(() => import('./marketplace/pages/TrackingPage.jsx'))
+const MarketplacePartner = lazy(() => import('./marketplace/pages/PartnerPage.jsx'))
+const MarketplaceNotFound = lazy(() => import('./marketplace/pages/NotFoundPage.jsx'))
+
+// Premier segment d'URL des pages qui ne relevent pas du portail public
+const PRIVATE_SEGMENTS = new Set(['espace', 'orders', 'create', 'catalog', 'tracking', 'deliveries', 'map', 'profile', 'shop'])
 
 // Ecran d'attente du portail : meme fond que le portail, sans l'ecran de demarrage de l'espace prive
 const MarketplaceFallback = () => <div className="h-dvh bg-[#09090b]" />
@@ -42,9 +49,10 @@ function DashboardRedirect() {
 
 function AnimatedRoutes() {
   const location = useLocation()
+  const firstSegment = location.pathname.split('/')[1] || ''
   const routeKey = ['/login', '/register'].includes(location.pathname)
     ? location.pathname
-    : MARKETPLACE_PATHS.has(location.pathname) ? 'marketplace' : 'authenticated-app'
+    : PRIVATE_SEGMENTS.has(firstSegment) ? 'authenticated-app' : 'marketplace'
 
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -55,6 +63,16 @@ function AnimatedRoutes() {
         <Route element={<Suspense fallback={<MarketplaceFallback />}><MarketplaceLayout /></Suspense>}>
           <Route index element={<MarketplaceHome />} />
           <Route path="catalogue" element={<MarketplaceCatalog />} />
+          <Route path="produits/:id" element={<MarketplaceProduct />} />
+          <Route path="boutiques" element={<MarketplaceShops />} />
+          <Route path="suivi" element={<MarketplaceTracking />} />
+          <Route path="suivi/:code" element={<MarketplaceTracking />} />
+          <Route path="devenir-partenaire" element={<MarketplacePartner />} />
+          <Route path="devenir-vendeur" element={<MarketplacePartner role="merchant" />} />
+          <Route path="devenir-livreur" element={<MarketplacePartner role="driver" />} />
+          {/* Toute URL inconnue : page 404 publique (les routes privees ci-dessous restent prioritaires
+              car explicites, et protegees par ProtectedRoute) */}
+          <Route path="*" element={<MarketplaceNotFound />} />
         </Route>
         <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
           {/* Ancienne entree « / » de l'espace prive : redirection vers le tableau de bord du role */}
@@ -68,9 +86,7 @@ function AnimatedRoutes() {
           <Route path="deliveries" element={<DeliveriesPage />} />
           <Route path="map" element={<DriverMapPage />} />
           <Route path="profile" element={<Profile />} />
-          <Route path="*" element={<DashboardRedirect />} />
         </Route>
-        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </AnimatePresence>
   )

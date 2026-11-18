@@ -146,12 +146,14 @@ function Footer() {
       links: NAV_LINKS.map((link) => ({ to: link.to, label: t(link.key) })),
     },
     {
+      // Devenir partenaire : pages de presentation ; espaces existants : connexion
       title: t('footer.partners'),
       links: [
+        { to: '/devenir-vendeur', label: t('footer.becomeSeller') },
+        { to: '/devenir-livreur', label: t('footer.becomeDriver') },
         { to: '/login', label: t('footer.sellerSpace') },
         { to: '/login', label: t('footer.driverSpace') },
         { to: '/login', label: t('footer.adminSpace') },
-        { to: '/register?role=merchant', label: t('footer.createSeller') },
       ],
     },
   ]

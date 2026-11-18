@@ -22,6 +22,27 @@ export const fetchProducts = async (params = {}, { signal } = {}) => {
   return data
 }
 
+/** Reponse : { product, related_products } */
+export const fetchProduct = async (productId, { signal } = {}) => {
+  const { data } = await api.get(`/api/public/products/${encodeURIComponent(productId)}`, { signal })
+  return data
+}
+
+/** params : { q, page, limit } ; reponse : { items, pagination } */
+export const fetchShops = async (params = {}, { signal } = {}) => {
+  const { data } = await api.get('/api/public/shops', { params: compactParams(params), signal })
+  return data
+}
+
+/**
+ * Suivi public par code (LM-XXXX-XXXX). Reponse anonymisee :
+ * { tracking_code, status, is_final, progress: { steps, current_step_index }, shop, created_at, updated_at, history }
+ */
+export const fetchTracking = async (code, { signal } = {}) => {
+  const { data } = await api.get(`/api/public/tracking/${encodeURIComponent(code)}`, { signal })
+  return data
+}
+
 export const isRequestCancelled = (error) => error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError'
 
 /** Cle de message d'erreur (voir i18n.js) adaptee a la reponse du serveur. */
@@ -29,5 +50,6 @@ export const getErrorKey = (error) => {
   const status = getApiStatus(error)
   if (status === 429) return 'errors.rateLimited'
   if (status === 400) return 'errors.badRequest'
+  if (status === 404) return 'errors.notFound'
   return 'errors.generic'
 }

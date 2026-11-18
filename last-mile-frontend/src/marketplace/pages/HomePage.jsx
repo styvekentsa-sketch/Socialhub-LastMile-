@@ -48,7 +48,7 @@ function Hero({ stats, isLoading }) {
               <PackageSearch aria-hidden="true" size={16} />
               {t('home.trackCta')}
             </Link>
-            <Link to="/devenir-partenaire" className="inline-flex h-10 items-center gap-2 rounded-lg border border-zinc-700 px-4 text-sm font-semibold text-white transition-colors hover:border-zinc-500">
+            <Link to="/devenir-vendeur" className="inline-flex h-10 items-center gap-2 rounded-lg border border-zinc-700 px-4 text-sm font-semibold text-white transition-colors hover:border-zinc-500">
               <Store aria-hidden="true" size={16} />
               {t('home.sellCta')}
             </Link>

@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import LanguageSwitcher from '../components/settings/LanguageSwitcher.jsx'
 import ThemeToggle from '../components/settings/ThemeToggle.jsx'
 import { ROLE_DASHBOARDS, useAuth } from '../context/auth.js'
@@ -27,6 +27,9 @@ const roles = [
   { value: 'merchant', labelKey: 'roles.merchant' },
   { value: 'driver', labelKey: 'roles.driver' },
 ]
+
+// Preselection du role depuis le portail public : /register?role=merchant|driver (alias vendeur|livreur)
+const ROLE_FROM_QUERY = { merchant: 'merchant', vendeur: 'merchant', driver: 'driver', livreur: 'driver' }
 
 const containerVariants = {
   hidden: {},
@@ -80,14 +83,15 @@ export default function Register({ installControl }) {
   const { isAuthenticated, user } = useAuth()
   const { t } = useLanguage()
   const redirectTimerRef = useRef(null)
-  const [form, setForm] = useState({
+  const [searchParams] = useSearchParams()
+  const [form, setForm] = useState(() => ({
     name: '',
     email: '',
     phone: '',
     password: '',
     passwordConfirmation: '',
-    role: 'merchant',
-  })
+    role: ROLE_FROM_QUERY[searchParams.get('role')?.toLowerCase()] || 'merchant',
+  }))
   const [showPasswords, setShowPasswords] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [toast, setToast] = useState(null)

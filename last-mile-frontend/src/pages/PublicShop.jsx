@@ -17,8 +17,8 @@ import {
   WalletCards,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useParams, useSearchParams } from 'react-router-dom'
 import LanguageSwitcher from '../components/settings/LanguageSwitcher.jsx'
 import ThemeToggle from '../components/settings/ThemeToggle.jsx'
 import UserAvatar from '../components/profile/UserAvatar.jsx'
@@ -292,6 +292,34 @@ export default function PublicShop({ installControl }) {
   const [isCheckingOut, setIsCheckingOut] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [checkoutError, setCheckoutError] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  // Arrivee depuis la fiche produit du portail : /shop/:slug?produit=ID&quantite=N
+  // Lu une seule fois : le produit est ajoute au panier et le paiement s'ouvre.
+  const prefillRef = useRef({
+    productId: Number(searchParams.get('produit')) || null,
+    quantity: Number.parseInt(searchParams.get('quantite'), 10) || 1,
+  })
+
+  const applyPrefill = useCallback((shopCatalog) => {
+    const { productId, quantity } = prefillRef.current
+    if (!productId) {
+      return
+    }
+    prefillRef.current = { productId: null, quantity: 1 }
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current)
+      next.delete('produit')
+      next.delete('quantite')
+      return next
+    }, { replace: true })
+
+    const product = shopCatalog?.products?.find((item) => Number(item.id) === productId)
+    if (!product || Number(product.stock) <= 0) {
+      return
+    }
+    setCart({ [product.id]: Math.max(1, Math.min(Number(product.stock), quantity)) })
+    setIsCheckoutOpen(true)
+  }, [setSearchParams])
 
   const loadCatalog = useCallback(async ({ silent = false } = {}) => {
     if (!silent) {
@@ -300,7 +328,9 @@ export default function PublicShop({ installControl }) {
     setLoadError('')
 
     try {
-      setCatalog(await publicShopService.getShop(slug))
+      const shopCatalog = await publicShopService.getShop(slug)
+      setCatalog(shopCatalog)
+      applyPrefill(shopCatalog)
     } catch (error) {
       setLoadError(getApiErrorMessage(error, t('socialHub.unavailable')))
     } finally {
@@ -308,7 +338,7 @@ export default function PublicShop({ installControl }) {
         setIsLoading(false)
       }
     }
-  }, [slug, t])
+  }, [slug, t, applyPrefill])
 
   const refreshCatalogSilently = useCallback(() => loadCatalog({ silent: true }), [loadCatalog])
   useAutoRefresh(refreshCatalogSilently, ['products'])

@@ -33,6 +33,8 @@ outil :
   instantanément au commerçant et à l'administrateur ;
 - **les boutiques en ligne** : chaque commerçant dispose d'une boutique publique (`/shop/<slug>`)
   avec catalogue, panier et paiement en ligne ;
+- **le portail public (marketplace)** : sans créer de compte, un visiteur parcourt les produits de toutes
+  les boutiques, commande, puis suit son colis avec un code de suivi anonyme (section 2.7) ;
 - **les notifications automatiques** : les étapes clés (commande validée, colis livré, échec de livraison)
   sont diffusées sur cinq plateformes (WhatsApp, Telegram, SMS, Messenger, LinkedIn), sans exposer de
   données personnelles.
@@ -41,7 +43,7 @@ outil :
 
 | Rôle | Ce qu'il fait dans l'application |
 |---|---|
-| **Client (public)** | Consulte une boutique, passe commande et paie, sans créer de compte. |
+| **Client (public)** | Parcourt la marketplace, commande et paie sans créer de compte, puis suit son colis avec un code. |
 | **Marchand** | Gère son catalogue et son stock, crée des courses de livraison, suit ses commandes. |
 | **Livreur** | Voit les livraisons qui lui sont assignées, partage sa position, met à jour le statut du colis. |
 | **Administrateur** | Supervise toutes les commandes, assigne les livreurs, débloque un livreur suspendu. |
@@ -115,10 +117,10 @@ Principales tables :
 | Table | Contenu |
 |---|---|
 | `users` | Comptes (rôle `merchant`, `driver` ou `admin`), avatar, `shop_slug` pour la boutique du marchand. |
-| `orders` | Commandes : client, adresse, coordonnées, statut logistique, statut et méthode de paiement. |
+| `orders` | Commandes : client, adresse, coordonnées, statut logistique, statut et méthode de paiement, code de suivi public (`tracking_code`). |
 | `delivery_logs` | Historique de chaque changement de statut (qui, quand, quel statut). |
 | `driver_positions` | Positions GPS des livreurs (précision, cap, vitesse, horodatage). |
-| `products` | Catalogue des marchands et stock. |
+| `products` | Catalogue des marchands : nom, description, catégorie, prix, image, stock. |
 | `order_items` | Lignes de commande des achats en boutique. |
 
 **Cycle de vie d'une livraison** (`orders.status`) :
@@ -145,6 +147,7 @@ Le schéma évolue par des scripts de migration SQL numérotés (`database/migra
 | Cartographie | Leaflet / React-Leaflet, fond de carte OpenStreetMap |
 | Temps réel | `socket.io-client` |
 | Expérience | PWA installable, bilingue (français / anglais), thème clair / sombre |
+| Portail public | Module séparé `src/marketplace/`, chargé à la demande (section 2.7) |
 
 ### 2.5 Choix techniques justifiés
 
@@ -274,6 +277,80 @@ Le test de bout en bout WhatsApp (17 tests, sur le vrai serveur et la vraie base
 > services. Les essais réels demandent les jetons de chaque plateforme (bot Telegram, passerelle SMS,
 > page Facebook, page LinkedIn approuvée).
 
+### 2.7 Portail public : marketplace et suivi de colis
+
+Le portail public ouvre Last-Mile aux acheteurs : sans compte, ils parcourent les produits de toutes les
+boutiques, commandent et suivent leur colis. Il est branché sur le système existant (mêmes boutiques,
+même paiement, mêmes statuts de livraison) sans modifier aucun tableau de bord.
+
+**Pages** (`last-mile-frontend/src/marketplace/`) :
+
+| Adresse | Page |
+|---|---|
+| `/` | Accueil : recherche, chiffres clés réels, catégories, nouveautés en stock, boutiques actives, appel aux partenaires |
+| `/catalogue` | Catalogue : recherche, filtres (catégorie, prix, stock), 4 tris, pagination ; tout l'état est dans l'URL (lien partageable) |
+| `/produits/:id` | Fiche produit : photo, prix, description, boutique (sans coordonnées), quantité, « Commander », produits du même vendeur |
+| `/boutiques` | Annuaire des boutiques, avec recherche et nombre de produits disponibles |
+| `/suivi`, `/suivi/:code` | Suivi de colis par code, actualisé toutes les 30 s tant que la livraison n'est pas terminée |
+| `/devenir-partenaire`, `/devenir-vendeur`, `/devenir-livreur` | Présentation des offres partenaires, inscription avec rôle présélectionné (`/register?role=…`) |
+| toute autre adresse | Page 404 publique |
+
+**API publique** (`last-mile-backend`, sans authentification) :
+
+| Route | Rôle |
+|---|---|
+| `GET /api/public/marketplace` | Données de l'accueil |
+| `GET /api/public/products` | Catalogue : recherche, filtres, tris, pagination (48 résultats maximum) |
+| `GET /api/public/products/:id` | Fiche produit et produits du même vendeur |
+| `GET /api/public/shops` | Annuaire des boutiques |
+| `GET /api/public/tracking/:code` | Suivi public anonymisé |
+
+Aucune de ces routes ne renvoie le téléphone ou l'email d'un marchand : chaque réponse est construite à
+partir d'une liste fermée de champs.
+
+**Suivi de colis public, sécurisé par conception :**
+
+- *Code non devinable* : chaque commande reçoit à sa création un code `LM-XXXX-XXXX`, tiré au hasard
+  par un générateur cryptographique dans un alphabet sans caractères ambigus (ni 0/O, ni 1/I/L), soit
+  environ 8,5 × 10¹¹ combinaisons. Le numéro interne de commande, séquentiel, n'est jamais utilisé
+  publiquement : il suffirait de l'incrémenter pour consulter les commandes des autres.
+- *Réponse anonymisée* : statut, étapes, historique horodaté et nom de la boutique uniquement. Ni nom,
+  ni téléphone, ni adresse (même pas le quartier), ni identité ou position GPS du livreur.
+- *Code remis au bon moment* : il n'est communiqué qu'après le paiement, sur l'écran de confirmation ;
+  une commande de boutique non payée n'est pas suivable (même réponse qu'un code inconnu).
+- *Limitation de débit* : 20 consultations par minute et par adresse IP (réponse 429 au-delà), contre
+  l'essai de codes au hasard. La recherche produits est limitée à 60 requêtes par minute. Le limiteur
+  est écrit en interne, sans dépendance externe.
+
+**Parcours d'achat.** Le panier reste propre à chaque boutique, comme le paiement existant. Depuis la
+fiche produit, « Commander » ouvre la boutique avec le produit et la quantité déjà dans le panier
+(`/shop/:slug?produit=…&quantite=…`) : le tunnel de paiement existant (Mobile Money, carte, confirmation
+en temps réel) est réutilisé tel quel, sans duplication.
+
+**Isolation de l'espace privé :**
+
+- le portail a sa propre mise en page et son propre conteneur de défilement ; il est chargé à la demande,
+  dans ses propres fichiers JavaScript et CSS, et n'alourdit pas les tableaux de bord ;
+- toutes ses règles CSS sont préfixées (`.mk-root`, `.mk-…`) et rangées dans une couche CSS
+  (`@layer components`) : un style du portail ne peut pas atteindre l'espace privé ;
+- ses textes FR/EN sont dans un fichier séparé ; les fichiers partagés (`index.css`, `translations.js`)
+  n'ont pas été modifiés ;
+- l'ancienne entrée `/` de l'espace privé devient `/espace`, et l'application installée (PWA) s'ouvre
+  désormais sur `/espace` : marchands et livreurs retrouvent directement leur tableau de bord.
+
+**Direction visuelle** : palette de l'application (fond `#09090b`, bordures zinc, accent `#f59e0b`,
+police Inter), grille de 1200 px, espacements en multiples de 8 px, bordures de 1 px, deux graisses de
+police, icônes `lucide-react`, sans dégradé ni effet décoratif.
+
+**Validation** :
+
+- 21 tests réels des routes publiques (`npm run test:marketplace`) : filtres, tris, pagination, absence de
+  données de contact, codes générés à la création des commandes, anonymisation du suivi, limitation de
+  débit, non-régression de la boutique existante ;
+- 23 vérifications dans le navigateur (fiche produit → paiement pré-rempli, suivi, 404, inscription
+  présélectionnée, liens de navigation), sur ordinateur et sur mobile, sans aucune erreur JavaScript ;
+- les 13 captures de l'espace privé ont été regénérées sans erreur après l'ajout du portail.
+
 ---
 
 ## 3. Sécurité et protection des données
@@ -293,6 +370,9 @@ Le test de bout en bout WhatsApp (17 tests, sur le vrai serveur et la vraie base
   uniquement à partir de modèles fixes, d'un numéro de commande et d'un statut, par un module commun à
   tous les canaux. Le nom, le téléphone, l'email, l'adresse et les coordonnées GPS du client ne sont
   jamais lus, donc ne peuvent pas être publiés (voir section 2.6).
+- **Portail public** : aucune donnée de contact des marchands dans les routes de la marketplace ; suivi
+  de colis par code aléatoire non séquentiel, réponse anonymisée, code remis seulement après paiement ;
+  limitation de débit sur le suivi et la recherche (voir section 2.7).
 - **Configuration** : tous les secrets sont dans des variables d'environnement (`.env`, non versionné) ;
   un modèle documenté est fourni (`.env.example`).
 
@@ -317,6 +397,7 @@ s'appuie sur la numérotation des migrations de base de données et sur l'état 
 | 10 | **Branchement des événements métier** : création, changement de statut, paiement confirmé | `orderController`, `trackingController`, `paymentService` (18 novembre 2026) |
 | 11 | **Architecture multi-canaux** : WhatsApp, Telegram, SMS sur un socle commun | `src/services/notifications/` (18 novembre 2026) |
 | 12 | **Canaux Messenger et LinkedIn** : 5 canaux, ajoutés sans toucher aux contrôleurs | `messengerService.js`, `linkedinService.js` (18 novembre 2026) |
+| 13 | **Portail public** : marketplace, catalogue, fiche produit, annuaire, suivi de colis par code, pages partenaires | Migration `009_marketplace_and_tracking.sql`, `src/marketplace/` (18 novembre 2026) |
 
 ---
 
@@ -328,6 +409,8 @@ s'appuie sur la numérotation des migrations de base de données et sur l'état 
 - Création de courses par le marchand et assignation d'un livreur par l'administrateur.
 - Suivi en temps réel : position du livreur sur la carte et notification instantanée des changements de statut.
 - Boutique publique par marchand, catalogue avec gestion du stock, panier et paiement en ligne.
+- Portail public : accueil, catalogue multi-boutiques avec recherche et filtres, fiches produits, annuaire
+  des boutiques, suivi de colis par code, pages « Devenir vendeur / livreur ».
 - Application installable (PWA), bilingue, thème clair / sombre.
 
 ### 5.2 Module de notification WhatsApp : intégration backend complète (18 novembre 2026)
@@ -384,8 +467,17 @@ livreur, qui n'émet pas encore d'événement.
   Évolution prévue : une table « outbox » et un mécanisme de renvoi automatique.
 - Les tables de base (`users`, `orders`, `delivery_logs`, `driver_positions`) n'ont pas encore de script
   de création dans le dépôt ; seules les migrations ultérieures y figurent.
-- Pas de suite de tests automatisés complète : seul le module WhatsApp dispose d'un test de bout en bout
-  versionné (`npm run test:whatsapp-e2e` dans `last-mile-backend/`).
+- Pas de suite de tests automatisés complète : trois scripts versionnés couvrent les notifications
+  (`test:notifications`), la marketplace (`test:marketplace`) et WhatsApp de bout en bout
+  (`test:whatsapp-e2e`) ; les tableaux de bord n'ont pas de tests automatisés.
+- Le limiteur de débit garde ses compteurs en mémoire, propres à chaque serveur : avec plusieurs serveurs,
+  il faudra un stockage partagé (Redis par exemple). Derrière un réseau partagé (wifi d'un campus),
+  plusieurs visiteurs partagent la même adresse IP et donc le même quota.
+- Le nom d'une boutique est le nom du compte marchand ; un champ « nom de boutique » distinct serait plus
+  adapté. Les commandes créées par un marchand ont un code de suivi, mais il n'est pas encore affiché dans
+  son tableau de bord (choix de ne pas modifier l'espace privé dans cette version).
+- Le fond de carte utilise les serveurs publics d'OpenStreetMap, dont la politique d'usage est limitée ;
+  un fournisseur de tuiles dédié sera nécessaire en production.
 - Perspectives : essais réels des 5 canaux de notification, optimisation des tournées, estimation de l'heure d'arrivée,
   tableau de bord statistique pour l'administrateur.
 
