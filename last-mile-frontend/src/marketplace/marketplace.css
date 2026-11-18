@@ -108,3 +108,13 @@
     color: var(--mk-text);
   }
 }
+
+/*
+ * Seule regle hors couche, toujours limitee au portail.
+ * index.css (non modifie) declare « button, input { font: inherit } » hors couche : cette regle
+ * l'emporte sur les classes Tailwind (text-sm...). Ici, « revert-layer » annule ce reglage global
+ * dans le portail uniquement, pour que les tailles Tailwind et .mk-input s'appliquent aux champs et boutons.
+ */
+.mk-root :is(button, input, select, textarea) {
+  font: revert-layer;
+}

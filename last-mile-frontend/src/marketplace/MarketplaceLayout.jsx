@@ -50,13 +50,14 @@ function LanguageToggle() {
   )
 }
 
-// « Se connecter » pour un visiteur, « Mon espace » (tableau de bord du role) pour un utilisateur connecte
-function AccountButton({ className = '' }) {
+// « Se connecter » pour un visiteur, « Mon espace » (tableau de bord du role) pour un utilisateur connecte.
+// className doit fournir l'affichage (ex. 'hidden sm:inline-flex') : aucune classe display n'est imposee ici.
+function AccountButton({ className = 'inline-flex' }) {
   const { t } = useMarketplaceText()
   const { isAuthenticated, isLoading, user } = useAuth()
 
   if (isLoading) {
-    return <span aria-hidden="true" className={`inline-block h-9 w-28 rounded-lg border border-zinc-800 ${className}`} />
+    return <span aria-hidden="true" className={`h-9 w-28 rounded-lg border border-zinc-800 ${className}`} />
   }
 
   const isConnected = isAuthenticated && ROLE_DASHBOARDS[user?.role]
@@ -64,7 +65,7 @@ function AccountButton({ className = '' }) {
   return (
     <Link
       to={isConnected ? ROLE_DASHBOARDS[user.role] : '/login'}
-      className={`inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-lg px-4 text-sm font-semibold transition-colors ${isConnected
+      className={`h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-lg px-4 text-sm font-semibold transition-colors ${isConnected
         ? 'border border-zinc-700 text-white hover:border-zinc-500'
         : 'bg-white text-zinc-950 hover:bg-zinc-200'} ${className}`}
     >
@@ -129,7 +130,7 @@ function Header() {
                 </NavLink>
               ))}
             </nav>
-            <AccountButton className="sm:hidden" />
+            <AccountButton className="flex sm:hidden" />
           </div>
         </div>
       )}
