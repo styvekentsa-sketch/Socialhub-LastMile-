@@ -8,6 +8,7 @@ import {
   Package,
   PackagePlus,
   Route as RouteIcon,
+  Share2,
   Store,
   Truck,
 } from 'lucide-react'
@@ -28,6 +29,8 @@ const NAVIGATION_BY_ROLE = {
     { to: '/orders', labelKey: 'nav.orders', icon: Package },
     { to: '/create', labelKey: 'nav.create', icon: PackagePlus },
     { to: '/catalog', labelKey: 'nav.catalog', icon: Store },
+    // Barre laterale uniquement : la barre mobile garde ses 5 entrees (acces mobile via « Mon catalogue »)
+    { to: '/social', labelKey: 'nav.social', icon: Share2, hideOnMobile: true },
     { to: '/tracking', labelKey: 'nav.tracking', icon: MapPinned },
     { to: '/profile', labelKey: 'nav.profile', icon: CircleUserRound },
   ],
@@ -275,7 +278,7 @@ export default function MainLayout() {
         </main>
       </div>
 
-      <MobileNavigation items={navigationItems} t={t} user={user} />
+      <MobileNavigation items={navigationItems.filter((item) => !item.hideOnMobile)} t={t} user={user} />
     </div>
   )
 }

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { getIO } from '../config/socket.js';
 import ProductModel from '../models/productModel.js';
+import { scheduleAutoPublish } from '../services/socialPublisher/index.js';
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 const PRODUCT_IMAGE_PREFIX = '/uploads/products/';
@@ -136,6 +137,8 @@ export const createProduct = async (req, res, next) => {
     );
 
     emitProductChange(req.user.id, 'product_created', product);
+    // Diffusion sur les canaux du marchand en auto_publish : asynchrone, la reponse n'attend pas
+    scheduleAutoPublish(req.user.id, product.id);
 
     return res.status(201).json({ success: true, product });
   } catch (error) {

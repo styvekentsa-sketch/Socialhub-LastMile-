@@ -16,6 +16,7 @@ const Login = lazy(() => import('./pages/Login.jsx'))
 const CreateOrder = lazy(() => import('./pages/CreateOrder.jsx'))
 const MerchantDashboard = lazy(() => import('./pages/MerchantDashboard.jsx'))
 const MerchantCatalog = lazy(() => import('./pages/MerchantCatalog.jsx'))
+const MerchantSocialChannels = lazy(() => import('./pages/MerchantSocialChannels.jsx'))
 const Profile = lazy(() => import('./pages/Profile.jsx'))
 const Register = lazy(() => import('./pages/Register.jsx'))
 const PublicShop = lazy(() => import('./pages/PublicShop.jsx'))
@@ -37,7 +38,7 @@ const MarketplacePartner = lazy(() => import('./marketplace/pages/PartnerPage.js
 const MarketplaceNotFound = lazy(() => import('./marketplace/pages/NotFoundPage.jsx'))
 
 // Premier segment d'URL des pages qui ne relevent pas du portail public
-const PRIVATE_SEGMENTS = new Set(['espace', 'orders', 'create', 'catalog', 'tracking', 'deliveries', 'map', 'profile', 'shop'])
+const PRIVATE_SEGMENTS = new Set(['espace', 'orders', 'create', 'catalog', 'social', 'tracking', 'deliveries', 'map', 'profile', 'shop'])
 
 // Ecran d'attente du portail : meme fond que le portail, sans l'ecran de demarrage de l'espace prive
 const MarketplaceFallback = () => <div className="h-dvh bg-[#09090b]" />
@@ -80,6 +81,7 @@ function AnimatedRoutes() {
           <Route path="orders" element={<MerchantDashboard />} />
           <Route path="create" element={<CreateOrder />} />
           <Route path="catalog" element={<MerchantCatalog />} />
+          <Route path="social" element={<MerchantSocialChannels />} />
           <Route path="orders/new" element={<MerchantDashboard />} />
           <Route path="tracking" element={<Tracking />} />
           <Route path="tracking/:orderId" element={<Tracking />} />

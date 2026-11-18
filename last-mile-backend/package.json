@@ -11,7 +11,8 @@
     "test:whatsapp-e2e": "node scripts/test-whatsapp-e2e.mjs",
     "test:notifications": "node scripts/test-notifications.mjs",
     "migrate": "node scripts/run-migration.js",
-    "test:marketplace": "node scripts/test-marketplace.mjs"
+    "test:marketplace": "node scripts/test-marketplace.mjs",
+    "test:social-publisher": "node scripts/test-social-publisher.mjs"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

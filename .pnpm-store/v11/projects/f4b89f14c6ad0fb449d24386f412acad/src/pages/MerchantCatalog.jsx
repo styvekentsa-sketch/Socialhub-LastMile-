@@ -8,6 +8,7 @@ import {
   Minus,
   PackageOpen,
   Plus,
+  Share2,
   Trash2,
   Upload,
   X,
@@ -19,6 +20,8 @@ import { useLanguage } from '../context/languageContext.js'
 import useAutoRefresh from '../hooks/useAutoRefresh.js'
 import { getApiErrorMessage } from '../services/api.js'
 import productService from '../services/productService.js'
+import socialChannelService from '../services/socialChannelService.js'
+import PublishReportSheet from '../components/social/PublishReportSheet.jsx'
 import { resolveAvatarUrl } from '../utils/avatar.js'
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
@@ -126,6 +129,9 @@ export default function MerchantCatalog() {
   const [error, setError] = useState('')
   const [formError, setFormError] = useState('')
   const [toast, setToast] = useState(null)
+  // Diffusion sur les reseaux du marchand : produit en cours d'envoi et rapport par canal
+  const [publishingProductId, setPublishingProductId] = useState(null)
+  const [publishReport, setPublishReport] = useState(null)
 
   const loadProducts = useCallback(async ({ silent = false } = {}) => {
     if (!silent) {
@@ -226,6 +232,19 @@ export default function MerchantCatalog() {
     }
   }
 
+  const publishProduct = async (product) => {
+    setPublishingProductId(product.id)
+
+    try {
+      const report = await socialChannelService.publishProduct(product.id)
+      setPublishReport({ productName: product.name, report })
+    } catch (publishError) {
+      setToast({ type: 'error', message: getApiErrorMessage(publishError, t('socialChannels.publish.error')) })
+    } finally {
+      setPublishingProductId(null)
+    }
+  }
+
   const deleteProduct = async (productId) => {
     setUpdatingProductId(productId)
 
@@ -246,10 +265,14 @@ export default function MerchantCatalog() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div><h2 className="text-lg font-semibold text-zinc-950 dark:text-zinc-100">{t('catalogManagement.title')}</h2><p className="mt-1 text-sm text-zinc-500">{t('catalogManagement.subtitle')}</p></div>
         <div className="flex items-center gap-2">
+          {/* « Mes réseaux » dans l'en-tete a partir de sm ; sur mobile, ligne dediee ci-dessous (en-tete inchange) */}
+          <Link to="/social" className="hidden h-10 items-center gap-2 rounded-md border border-zinc-200 px-3 text-xs font-medium text-zinc-600 hover:bg-white dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900 sm:flex"><Share2 aria-hidden="true" size={15} />{t('nav.social')}</Link>
           {user.shop_slug && <Link to={`/shop/${user.shop_slug}`} target="_blank" className="flex h-10 items-center gap-2 rounded-md border border-zinc-200 px-3 text-xs font-medium text-zinc-600 hover:bg-white dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"><ExternalLink aria-hidden="true" size={15} />{t('catalogManagement.viewShop')}</Link>}
           <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => setIsDrawerOpen(true)} className="flex h-10 items-center gap-2 rounded-md bg-amber-500 px-3 text-xs font-semibold text-zinc-950 hover:bg-amber-400"><Plus aria-hidden="true" size={16} />{t('catalogManagement.addProduct')}</motion.button>
         </div>
       </div>
+      {/* Mobile : la barre du bas n'a pas d'entree « Mes réseaux », l'acces se fait ici */}
+      <Link to="/social" className="-mt-2 mb-4 flex h-10 items-center justify-center gap-2 rounded-md border border-zinc-200 text-xs font-medium text-zinc-600 dark:border-zinc-800 dark:text-zinc-300 sm:hidden"><Share2 aria-hidden="true" size={15} />{t('nav.social')}</Link>
 
       {isLoading ? (
         <div className="grid min-h-72 place-items-center"><LoaderCircle aria-hidden="true" className="animate-spin text-amber-500" size={23} /></div>
@@ -274,6 +297,11 @@ export default function MerchantCatalog() {
                     <div className="flex items-center justify-between gap-2"><span className={`flex items-center gap-1.5 text-[10px] font-medium ${stockMeta.text}`}><span className="relative flex size-1.5">{stockMeta.pulse && <span className="absolute size-full animate-ping rounded-full bg-rose-400" />}<span className={`relative size-1.5 rounded-full ${stockMeta.bar}`} /></span>{stockMeta.label}</span><span className="font-mono text-xs text-zinc-500">{product.stock}</span></div>
                     <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800"><motion.div animate={{ width: stockMeta.width }} className={`h-full rounded-full ${stockMeta.bar}`} /></div>
                     <div className="mt-3 flex items-center justify-end gap-1"><button type="button" onClick={() => updateStock(product, Number(product.stock) - 1)} disabled={isUpdating || Number(product.stock) === 0} className="grid size-8 place-items-center rounded-md border border-zinc-200 text-zinc-500 disabled:opacity-35 dark:border-zinc-700" aria-label={t('catalogManagement.decreaseStock')}><Minus aria-hidden="true" size={14} /></button><button type="button" onClick={() => updateStock(product, Number(product.stock) + 1)} disabled={isUpdating} className="grid size-8 place-items-center rounded-md border border-zinc-200 text-zinc-500 disabled:opacity-35 dark:border-zinc-700" aria-label={t('catalogManagement.increaseStock')}>{isUpdating ? <LoaderCircle aria-hidden="true" className="animate-spin" size={14} /> : <Plus aria-hidden="true" size={14} />}</button></div>
+                    {/* Diffusion sur les reseaux du marchand : ligne dediee, libelle complet */}
+                    <button type="button" onClick={() => publishProduct(product)} disabled={publishingProductId !== null} className="mt-2 flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-zinc-200 px-2 text-zinc-600 hover:border-amber-500/60 hover:text-amber-600 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:text-amber-400">
+                      {publishingProductId === product.id ? <LoaderCircle aria-hidden="true" className="shrink-0 animate-spin" size={14} /> : <Share2 aria-hidden="true" className="shrink-0" size={14} />}
+                      <span className="truncate text-xs font-medium">{t(publishingProductId === product.id ? 'socialChannels.publish.publishing' : 'socialChannels.publish.button')}</span>
+                    </button>
                   </div>
                 </div>
               </motion.article>
@@ -283,6 +311,7 @@ export default function MerchantCatalog() {
       )}
 
       <AnimatePresence>{isDrawerOpen && <ProductFormDrawer error={formError} form={form} imagePreview={imageBase64} isDragging={isDragging} isSubmitting={isSubmitting} onChange={(event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }))} onClose={closeDrawer} onDragState={setIsDragging} onDrop={(event) => { event.preventDefault(); selectImage(event.dataTransfer.files?.[0]) }} onFileSelect={selectImage} onSubmit={createProduct} t={t} />}</AnimatePresence>
+      <AnimatePresence>{publishReport && <PublishReportSheet productName={publishReport.productName} report={publishReport.report} onClose={() => setPublishReport(null)} t={t} />}</AnimatePresence>
       <AnimatePresence>{toast && <CatalogToast toast={toast} onClose={() => setToast(null)} t={t} />}</AnimatePresence>
     </div>
   )

@@ -7,7 +7,10 @@
 // Derriere un proxy, configurer TRUST_PROXY pour que req.ip soit l'IP reelle du visiteur.
 const MAX_TRACKED_CLIENTS = 10000;
 
-export const createRateLimiter = ({ name, windowMs, max }) => {
+// keyGenerator : par defaut l'adresse IP ; peut etre l'utilisateur connecte (ex. limite par marchand)
+const ipKey = (req) => req.ip || req.socket?.remoteAddress || 'inconnu';
+
+export const createRateLimiter = ({ name, windowMs, max, keyGenerator = ipKey }) => {
   const clients = new Map();
 
   const purgeExpired = (now) => {
@@ -21,7 +24,7 @@ export const createRateLimiter = ({ name, windowMs, max }) => {
 
   return (req, res, next) => {
     const now = Date.now();
-    const key = req.ip || req.socket?.remoteAddress || 'inconnu';
+    const key = keyGenerator(req);
     let entry = clients.get(key);
 
     if (!entry || entry.resetAt <= now) {
@@ -50,6 +53,14 @@ export const createRateLimiter = ({ name, windowMs, max }) => {
 
 // Suivi de colis : protege contre l'essai de codes au hasard
 export const trackingRateLimiter = createRateLimiter({ name: 'suivi de colis', windowMs: 60 * 1000, max: 20 });
+
+// Publication manuelle sur les reseaux sociaux : par marchand, pour ne pas faire bannir ses comptes
+export const socialPublishRateLimiter = createRateLimiter({
+  name: 'publication sociale',
+  windowMs: 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => `marchand-${req.user?.id ?? ipKey(req)}`
+});
 
 // Catalogue et recherche produits
 export const productSearchRateLimiter = createRateLimiter({ name: 'recherche produits', windowMs: 60 * 1000, max: 60 });
