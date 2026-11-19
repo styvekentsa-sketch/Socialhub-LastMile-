@@ -11,14 +11,14 @@ const DESCRIPTION_EXCERPT_LENGTH = 160;
 const TRACKING_STEPS = ['pending', 'assigned', 'picking', 'in_transit', 'delivered'];
 const FINAL_STATUSES = new Set(['delivered', 'failed', 'cancelled']);
 
-const createHttpError = (message, statusCode) => {
+export const createHttpError = (message, statusCode) => {
   const error = new Error(message);
   error.statusCode = statusCode;
   return error;
 };
 
-// ---------- Lecture et validation des parametres ----------
-const readText = (value, maxLength, label) => {
+// ---------- Lecture et validation des parametres (reutilises par marketplaceProController) ----------
+export const readText = (value, maxLength, label) => {
   if (value === undefined || value === '') return null;
   const text = String(value).trim();
   if (text.length > maxLength) throw createHttpError(`${label} trop long (${maxLength} caracteres maximum).`, 400);
@@ -32,20 +32,23 @@ const readPositiveInt = (value, fallback, max, label) => {
   return Math.min(number, max);
 };
 
-const readPrice = (value, label) => {
+export const readPrice = (value, label) => {
   if (value === undefined || value === '') return null;
   const number = Number(value);
   if (!Number.isFinite(number) || number < 0) throw createHttpError(`${label} invalide.`, 400);
   return number;
 };
 
-const readPagination = (query) => ({
+export const readPagination = (query) => ({
   page: readPositiveInt(query.page, 1, MAX_PAGE, 'Numero de page'),
   // Au-dela du maximum, la taille est ramenee a 48 plutot que refusee
   limit: readPositiveInt(query.limit, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, 'Taille de page')
 });
 
-const paginationOf = ({ page, limit }, total) => ({ page, limit, total, total_pages: Math.ceil(total / limit) });
+export const paginationOf = ({ page, limit }, total) => ({ page, limit, total, total_pages: Math.ceil(total / limit) });
+
+// Note moyenne arrondie a une decimale (null sans avis)
+export const toRating = (value) => (value === null || value === undefined ? null : Math.round(Number(value) * 10) / 10);
 
 // ---------- Mise en forme (liste blanche de champs) ----------
 const excerpt = (text) => {
@@ -53,9 +56,9 @@ const excerpt = (text) => {
   return text.length > DESCRIPTION_EXCERPT_LENGTH ? `${text.slice(0, DESCRIPTION_EXCERPT_LENGTH - 1).trimEnd()}…` : text;
 };
 
-const toShopSummary = (row) => ({ name: row.shop_name, slug: row.shop_slug, avatar: row.shop_avatar });
+const toShopSummary = (row) => ({ name: row.shop_name, slug: row.shop_slug, avatar: row.shop_avatar, verified: Boolean(row.shop_verified) });
 
-const toProductCard = (row) => ({
+export const toProductCard = (row) => ({
   id: row.id,
   name: row.name,
   description: excerpt(row.description),
@@ -64,6 +67,8 @@ const toProductCard = (row) => ({
   image_url: row.image_url,
   stock: Number(row.stock),
   in_stock: Number(row.stock) > 0,
+  avg_rating: toRating(row.avg_rating),
+  review_count: Number(row.review_count || 0),
   shop: toShopSummary(row)
 });
 
@@ -71,6 +76,7 @@ const toShopCard = (row) => ({
   name: row.name,
   slug: row.shop_slug,
   avatar: row.avatar,
+  verified: Boolean(row.is_verified),
   product_count: Number(row.product_count),
   in_stock_count: Number(row.in_stock_count),
   min_price: row.min_price === null ? null : Number(row.min_price)

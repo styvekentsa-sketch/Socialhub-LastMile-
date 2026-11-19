@@ -54,6 +54,14 @@ const UserModel = {
     }
   },
 
+  /** Connexion reussie : la date courante devient la precedente (affichee dans Parametres > Securite). */
+  async recordLogin(userId) {
+    await pool.query(
+      'UPDATE users SET previous_login_at = last_login_at, last_login_at = NOW() WHERE id = ?',
+      [userId]
+    );
+  },
+
   async updateAvatar(userId, avatar) {
     const [result] = await pool.query(
       'UPDATE users SET avatar = ? WHERE id = ?',

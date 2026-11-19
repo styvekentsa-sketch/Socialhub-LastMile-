@@ -70,7 +70,7 @@ function PartnerRolePage({ role }) {
         <h2 id="mk-benefits-title" className="mb-8 text-xl font-semibold text-white">{t('partner.benefitsTitle')}</h2>
         <div className="grid gap-px overflow-hidden rounded-lg border border-zinc-800 bg-zinc-800 md:grid-cols-2">
           {benefits.map(([title, text]) => (
-            <div key={title} className="bg-[#09090b] p-6">
+            <div key={title} className="bg-[var(--mk-bg)] p-6">
               <BadgeCheck aria-hidden="true" size={20} className="text-amber-500" />
               <h3 className="mt-4 text-base font-semibold text-white">{title}</h3>
               <p className="mt-2 text-sm text-zinc-400">{text}</p>

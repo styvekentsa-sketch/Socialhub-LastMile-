@@ -1,5 +1,6 @@
 // FILE: src/config/socket.js
 import jwt from 'jsonwebtoken';
+import { isTokenCurrent } from '../services/tokenVersionService.js';
 import { Server } from 'socket.io';
 import pool from './db.js';
 import { socketCorsOptions } from './cors.js';
@@ -70,7 +71,13 @@ export const initializeSocket = (httpServer) => {
         return next(new Error('Configuration JWT manquante.'));
       }
 
-      socket.user = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      if (!await isTokenCurrent(decoded)) {
+        return next(new Error('Token invalide ou expire.'));
+      }
+
+      socket.user = decoded;
       return next();
     } catch (error) {
       return next(new Error('Token invalide ou expire.'));

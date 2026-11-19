@@ -14,6 +14,8 @@ import trackingRoutes from './routes/trackingRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import driverRoutes from './routes/driverRoutes.js';
 import merchantRoutes from './routes/merchantRoutes.js';
+import marketplaceRoutes from './routes/marketplaceRoutes.js';
+import settingsRoutes from './routes/settingsRoutes.js';
 import publicRoutes from './routes/publicRoutes.js';
 import productRoutes from './routes/productRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
@@ -56,6 +58,8 @@ app.use('/api/tracking', trackingRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/drivers', driverRoutes);
 app.use('/api/merchant', merchantRoutes);
+app.use('/api/marketplace', marketplaceRoutes);
+app.use('/api/settings', settingsRoutes);
 app.use(notFoundHandler);
 app.use(globalErrorHandler);
 

@@ -1,5 +1,6 @@
 // FILE: src/middlewares/authMiddleware.js
 import jwt from 'jsonwebtoken';
+import { isTokenCurrent } from '../services/tokenVersionService.js';
 
 const createUnauthorizedError = (message) => {
   const error = new Error(message);
@@ -25,7 +26,14 @@ export const protect = async (req, res, next) => {
       throw new Error('Configuration JWT manquante.');
     }
 
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Jeton revoque (autres sessions deconnectees, mot de passe change) ou compte supprime
+    if (!await isTokenCurrent(decoded)) {
+      throw createUnauthorizedError('Session expiree. Veuillez vous reconnecter.');
+    }
+
+    req.user = decoded;
     return next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {

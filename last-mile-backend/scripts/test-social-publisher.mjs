@@ -126,7 +126,9 @@ try {
     merchants[key] = { id: result.insertId, productId: product.insertId, token: jwt.sign({ id: result.insertId, role: 'merchant' }, process.env.JWT_SECRET, { expiresIn: '10m' }), channels: {} };
   }
   const { A, B } = merchants;
-  const driverToken = jwt.sign({ id: 999999, role: 'driver' }, process.env.JWT_SECRET, { expiresIn: '10m' });
+  // Livreur reel : les jetons d'un compte inexistant sont refuses (401) avant tout controle de role
+  const [[existingDriver]] = await pool.query("SELECT id FROM users WHERE role = 'driver' ORDER BY id LIMIT 1");
+  const driverToken = existingDriver && jwt.sign({ id: existingDriver.id, role: 'driver' }, process.env.JWT_SECRET, { expiresIn: '10m' });
 
   // ===== Configuration des canaux =====
   await test('creation des canaux : 5 pour A, 2 pour B (201)', async () => {

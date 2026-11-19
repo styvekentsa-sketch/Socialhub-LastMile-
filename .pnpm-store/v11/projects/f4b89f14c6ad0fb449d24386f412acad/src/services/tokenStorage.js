@@ -46,6 +46,12 @@ export const persistAuthToken = (token, rememberMe = false) => {
   return true
 }
 
+/** Remplace le jeton dans le stockage qui le contient deja (renouvellement apres revocation des autres sessions). */
+export const replaceAuthToken = (token) => {
+  const local = getStorage('localStorage')
+  return persistAuthToken(token, Boolean(readToken(local)))
+}
+
 export const clearAuthToken = () => {
   removeToken(getStorage('localStorage'))
   removeToken(getStorage('sessionStorage'))

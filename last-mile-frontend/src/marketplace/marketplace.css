@@ -4,8 +4,8 @@
  * Une fois charge, ce fichier reste actif dans toute l'application (fonctionnement de Vite) :
  * aucun selecteur global n'est donc autorise ici. index.css n'est pas modifie.
  *
- * Palette : celle de Last-Mile (fond #09090b, bordures zinc-800, accent #f59e0b, Inter).
- * Le portail reste sombre quel que soit le theme choisi dans l'espace prive.
+ * Themes : clair par defaut (data-mk-theme="light"), sombre au choix (data-mk-theme="dark"),
+ * independants du theme de l'espace prive. Voir les jetons ci-dessous et la section « Theme clair ».
  *
  * Les regles sont dans @layer components : les classes utilitaires Tailwind (couche « utilities »)
  * restent prioritaires, comme dans le reste de l'application. Hors couche, ces regles les ecraseraient.
@@ -22,6 +22,13 @@
     --mk-text-muted: #a1a1aa;
     --mk-text-subtle: #71717a;
     --mk-accent: #f59e0b;
+    --mk-input-bg: #09090b;
+    /* Boutons « contraste » : blancs sur fond sombre */
+    --mk-contrast: #ffffff;
+    --mk-contrast-hover: #e4e4e7;
+    --mk-on-contrast: #09090b;
+    --scrollbar-track: #18181b;
+    --scrollbar-thumb: #3f3f46;
 
     color-scheme: dark;
     background-color: var(--mk-bg);
@@ -51,7 +58,7 @@
     width: 100%;
     border: 1px solid var(--mk-border);
     border-radius: 8px;
-    background-color: var(--mk-bg);
+    background-color: var(--mk-input-bg);
     padding-inline: 12px;
     color: var(--mk-text);
     font-size: 14px;
@@ -117,4 +124,87 @@
  */
 .mk-root :is(button, input, select, textarea) {
   font: revert-layer;
+}
+
+/* Les barres de defilement globales (index.css, hors couche) ne doivent pas apparaitre sur les rangees defilantes du portail */
+.mk-root .mk-scroll-x {
+  scrollbar-width: none;
+}
+
+/*
+ * ---------- Bandeau de la vitrine boutique ----------
+ */
+.mk-root .mk-shop-banner {
+  background-image: linear-gradient(135deg, #111113 0%, #18181b 55%, #1f1a10 100%);
+}
+
+/*
+ * ---------- Theme clair (par defaut) ----------
+ * Les classes Tailwind lisent leurs couleurs dans des variables (--color-zinc-800...) : on les redefinit
+ * uniquement sous .mk-root[data-mk-theme="light"]. L'echelle zinc du theme sombre devient une echelle
+ * ardoise inversee (texte clair -> texte anthracite, bordure sombre -> bordure claire).
+ * zinc-950 n'est pas redefini : il sert de texte sur les boutons ambre, lisibles dans les deux themes.
+ * Aucun effet hors du portail.
+ */
+.mk-root[data-mk-theme='light'] {
+  color-scheme: light;
+
+  --mk-bg: #f8fafc;
+  --mk-surface: #ffffff;
+  --mk-surface-raised: #ffffff;
+  --mk-border: #e2e8f0;
+  --mk-border-strong: #cbd5e1;
+  --mk-text: #0f172a;
+  --mk-text-muted: #475569;
+  --mk-text-subtle: #64748b;
+  --mk-input-bg: #ffffff;
+  --mk-contrast: #0f172a;
+  --mk-contrast-hover: #1e293b;
+  --mk-on-contrast: #ffffff;
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+
+  --color-white: #0f172a;
+  --color-zinc-100: #0f172a;
+  --color-zinc-200: #1e293b;
+  --color-zinc-300: #334155;
+  --color-zinc-400: #475569;
+  --color-zinc-500: #64748b;
+  --color-zinc-600: #94a3b8;
+  --color-zinc-700: #cbd5e1;
+  --color-zinc-800: #e2e8f0;
+  --color-zinc-900: #f1f5f9;
+
+  /* Accents lisibles sur fond clair (contraste AA) */
+  --color-emerald-400: #047857;
+  --color-sky-300: #0369a1;
+  --color-sky-400: #0284c7;
+  --color-rose-400: #e11d48;
+}
+
+/* Texte ambre : plus fonce sur fond clair (les fonds ambre des boutons restent inchanges) */
+.mk-root[data-mk-theme='light'] :is(.text-amber-500, .text-amber-400, .hover\:text-amber-400:hover) {
+  color: #b45309;
+}
+
+.mk-root[data-mk-theme='light'] .text-amber-500\/90 {
+  color: rgb(180 83 9 / 0.9);
+}
+
+/* Cartes et encarts blancs : ombre tres legere pour le relief */
+.mk-root[data-mk-theme='light'] [class*='bg-[var(--mk-surface)]'] {
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 1px 3px rgb(15 23 42 / 0.06);
+}
+
+/* Voile des tiroirs et modales : plus doux en theme clair */
+.mk-root[data-mk-theme='light'] .bg-black\/70 {
+  background-color: rgb(15 23 42 / 0.4);
+}
+
+.mk-root[data-mk-theme='light'] .mk-shop-banner {
+  background-image: linear-gradient(135deg, #ffffff 0%, #f1f5f9 55%, #fef3c7 100%);
+}
+
+.mk-root[data-mk-theme='light'] .mk-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }

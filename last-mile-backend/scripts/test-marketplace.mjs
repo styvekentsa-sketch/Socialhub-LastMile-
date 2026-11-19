@@ -203,8 +203,9 @@ try {
       const r = await get(`/tracking/${code}`);
       assert.equal(r.status, 200);
       assert.equal(findKey(r.json, PERSONAL_KEYS), null, `cle interdite dans le suivi ${code}`);
-      const raw = JSON.stringify(r.json);
-      for (const secret of ['Testeur', 'Confidentiel', '699', 'secret@', 'Bonamoussadi', 'Bonapriso', 'Manga Bell', 'Client Démo', 'Eric', '4.0', '9.7']) {
+      // Dates ISO retirees : « ...:54.000Z » contiendrait « 4.0 » et fausserait la recherche de coordonnees GPS
+      const raw = JSON.stringify(r.json).replace(/\d{4}-\d{2}-\d{2}T[\d:.]+Z/g, '');
+      for (const secret of ['Testeur', 'Confidentiel', '699', 'secret@', 'Bonamoussadi', 'Bonapriso', 'Manga Bell', 'Client Démo', 'Eric', '4.0', '9.7', '9.6']) {
         assert.ok(!raw.includes(secret), `donnee personnelle exposee : ${secret}`);
       }
     }

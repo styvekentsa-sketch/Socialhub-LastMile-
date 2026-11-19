@@ -65,7 +65,7 @@ function ProgressSteps({ progress }) {
         const isCurrent = index === progress.current_step_index && step !== 'delivered'
         return (
           <li key={step} aria-current={isCurrent ? 'step' : undefined} className="flex flex-col gap-2">
-            <span className={`h-1 rounded-full ${isDone ? 'bg-white' : isCurrent ? 'bg-amber-500' : 'bg-zinc-800'}`} />
+            <span className={`h-1 rounded-full ${isDone ? 'bg-[var(--mk-contrast)]' : isCurrent ? 'bg-amber-500' : 'bg-zinc-800'}`} />
             {/* Sur mobile, les 5 libelles ne tiennent pas : barres seules (le statut est affiche au-dessus),
                 libelles conserves pour les lecteurs d'ecran */}
             <span className={`sr-only text-xs sm:not-sr-only ${isCurrent ? 'font-semibold text-amber-500' : isDone ? 'text-zinc-300' : 'text-zinc-600'}`}>
@@ -124,7 +124,7 @@ function TrackingResult({ tracking, onRefresh, isRefreshing }) {
           <ol className="relative flex flex-col gap-4 border-l border-zinc-800 pl-6">
             {history.map((entry, index) => (
               <li key={`${entry.status}-${entry.at}`} className="relative">
-                <span className={`absolute -left-[31px] top-0.5 grid size-4 place-items-center rounded-full border ${index === 0 ? 'border-amber-500 bg-[#09090b]' : 'border-zinc-700 bg-zinc-800'}`}>
+                <span className={`absolute -left-[31px] top-0.5 grid size-4 place-items-center rounded-full border ${index === 0 ? 'border-amber-500 bg-[var(--mk-bg)]' : 'border-zinc-700 bg-zinc-800'}`}>
                   {index > 0 && <Check aria-hidden="true" size={10} className="text-zinc-300" />}
                 </span>
                 <p className={`text-sm ${index === 0 ? 'font-semibold text-white' : 'text-zinc-300'}`}>{t(`tracking.statuses.${entry.status}`)}</p>

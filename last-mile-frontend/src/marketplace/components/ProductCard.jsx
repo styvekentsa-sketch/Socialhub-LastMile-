@@ -2,6 +2,9 @@ import { Package } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMarketplaceText } from '../i18n.js'
+import { RatingSummary } from './StarRating.jsx'
+import VerifiedBadge from './VerifiedBadge.jsx'
+import WishlistButton from './WishlistButton.jsx'
 
 const LOW_STOCK_THRESHOLD = 5
 
@@ -19,16 +22,17 @@ function StockBadge({ stock }) {
   return <span className="rounded-md border border-zinc-700 px-2 py-0.5 text-xs text-zinc-300">{t('product.inStock')}</span>
 }
 
-/** Carte produit : photo, titre, boutique, prix en FCFA, etat du stock. */
+/** Carte produit : photo, titre, boutique (badge verifie), note, prix en FCFA, etat du stock. */
 export default function ProductCard({ product }) {
   const { t, formatPrice } = useMarketplaceText()
   const [hasImageError, setHasImageError] = useState(false)
   const showImage = product.image_url && !hasImageError
 
   return (
+    <div className="relative h-full">
     <Link
       to={`/produits/${product.id}`}
-      className="group flex h-full flex-col overflow-hidden rounded-lg border border-zinc-800 bg-[#111113] transition-colors hover:border-zinc-600"
+      className="group flex h-full flex-col overflow-hidden rounded-lg border border-zinc-800 bg-[var(--mk-surface)] transition-colors hover:border-zinc-600"
     >
       <div className="relative aspect-[4/3] overflow-hidden border-b border-zinc-800 bg-zinc-900">
         {showImage ? (
@@ -50,12 +54,18 @@ export default function ProductCard({ product }) {
         <h3 className="line-clamp-2 text-[15px] font-semibold text-white group-hover:underline group-hover:underline-offset-4">
           {product.name}
         </h3>
-        <p className="truncate text-[13px] text-zinc-400">{t('product.soldBy', { shop: product.shop.name })}</p>
+        <p className="flex min-w-0 items-center gap-1 text-[13px] text-zinc-400">
+          <span className="truncate">{t('product.soldBy', { shop: product.shop.name })}</span>
+          {product.shop.verified && <VerifiedBadge compact />}
+        </p>
+        {'review_count' in product && <RatingSummary value={product.avg_rating} count={product.review_count} size={12} className="mt-1" />}
         <div className="mt-auto flex items-center justify-between gap-2 pt-3">
           <span className="text-[15px] font-semibold text-white">{formatPrice(product.price)}</span>
           <StockBadge stock={product.stock} />
         </div>
       </div>
     </Link>
+    <WishlistButton product={product} className="absolute right-2 top-2" />
+    </div>
   )
 }

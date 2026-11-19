@@ -77,7 +77,8 @@ export const getPublicShop = async (req, res, next) => {
         name: catalog.shop.name,
         phone: catalog.shop.phone,
         avatar: catalog.shop.avatar,
-        slug: catalog.shop.shop_slug
+        slug: catalog.shop.shop_slug,
+        paused: catalog.shop.shop_status === 'paused'
       },
       products: catalog.products
     });

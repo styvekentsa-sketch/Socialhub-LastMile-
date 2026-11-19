@@ -1,23 +1,30 @@
-import { CircleAlert, SlidersHorizontal } from 'lucide-react'
+import { CircleAlert, SlidersHorizontal, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
 import EmptyState from '../components/EmptyState.jsx'
 import Filters from '../components/Filters.jsx'
-import { SORT_OPTIONS } from '../constants.js'
+import { LEGACY_SORTS, SORT_OPTIONS } from '../constants.js'
 import Pagination from '../components/Pagination.jsx'
 import ProductCard from '../components/ProductCard.jsx'
 import { useMarketplaceText } from '../i18n.js'
-import { fetchMarketplaceHome, fetchProducts, getErrorKey, isRequestCancelled } from '../services/marketplaceApi.js'
+import { fetchMarketplaceProducts, getErrorKey, isRequestCancelled } from '../services/marketplaceApi.js'
 import usePageTitle from '../usePageTitle.js'
 
 const PAGE_SIZE = 24
+const DEFAULT_SORT = 'newest'
+
+// Tri : valeurs de /api/marketplace ; les anciens liens (?sort=recent|name) restent valides
+const readSort = (value) => {
+  if (SORT_OPTIONS.includes(value)) return value
+  return LEGACY_SORTS[value] || DEFAULT_SORT
+}
 const FILTER_KEYS = ['q', 'category', 'sort', 'min_price', 'max_price', 'in_stock']
 
 // L'URL est la seule source de verite : ?q=&category=&sort=&min_price=&max_price=&in_stock=&page=
 const readValues = (searchParams) => ({
   q: searchParams.get('q') || '',
   category: searchParams.get('category') || '',
-  sort: SORT_OPTIONS.includes(searchParams.get('sort')) ? searchParams.get('sort') : 'recent',
+  sort: readSort(searchParams.get('sort')),
   min_price: searchParams.get('min_price') || '',
   max_price: searchParams.get('max_price') || '',
   in_stock: searchParams.get('in_stock') === 'true',
@@ -37,10 +44,9 @@ const ResultSkeletons = () => (
 
 export default function CatalogPage() {
   const { t, formatNumber } = useMarketplaceText()
-  const { scrollRef } = useOutletContext() || {}
+  const { scrollRef, categories = [] } = useOutletContext() || {}
   const [searchParams, setSearchParams] = useSearchParams()
   const values = useMemo(() => readValues(searchParams), [searchParams])
-  const [categories, setCategories] = useState([])
   const [attempt, setAttempt] = useState(0)
   // Le resultat affiche est celui de la derniere requete terminee ; tant que sa cle differe de
   // la requete en cours, la page est en chargement (etat derive, sans setState dans l'effet)
@@ -50,19 +56,10 @@ export default function CatalogPage() {
   const [areFiltersOpen, setAreFiltersOpen] = useState(false)
   usePageTitle(t('catalog.pageTitle'))
 
-  // Categories (avec leur nombre de produits) pour la barre de filtres
-  useEffect(() => {
-    const controller = new AbortController()
-    fetchMarketplaceHome({ signal: controller.signal })
-      .then((data) => setCategories(data.categories))
-      .catch(() => undefined)
-    return () => controller.abort()
-  }, [])
-
   // Produits : rechargement a chaque changement de l'URL ; la requete precedente est annulee
   useEffect(() => {
     const controller = new AbortController()
-    fetchProducts({
+    fetchMarketplaceProducts({
       q: values.q,
       category: values.category,
       sort: values.sort,
@@ -84,7 +81,7 @@ export default function CatalogPage() {
     setSearchParams((current) => {
       const next = new URLSearchParams(current)
       Object.entries(patch).forEach(([key, value]) => {
-        const isDefault = value === '' || value === null || value === undefined || (key === 'sort' && value === 'recent') || (key === 'page' && value === 1)
+        const isDefault = value === '' || value === null || value === undefined || (key === 'sort' && value === DEFAULT_SORT) || (key === 'page' && value === 1)
         if (isDefault) next.delete(key)
         else next.set(key, String(value))
       })
@@ -126,20 +123,38 @@ export default function CatalogPage() {
           className="inline-flex h-10 items-center gap-2 rounded-lg border border-zinc-700 px-4 text-sm font-semibold text-white lg:hidden"
         >
           <SlidersHorizontal aria-hidden="true" size={16} />
-          {t(areFiltersOpen ? 'catalog.hideFilters' : 'catalog.showFilters')}
+          {t('catalog.showFilters')}
         </button>
       </div>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-12">
-        <aside id="mk-filters" aria-label={t('catalog.filters')} className={`${areFiltersOpen ? 'block' : 'hidden'} lg:col-span-3 lg:block`}>
-          <div className="lg:sticky lg:top-24">
-            <Filters
-              key={`${values.min_price}|${values.max_price}`}
-              values={values}
-              categories={categories}
-              onChange={updateParams}
-              onReset={resetFilters}
-            />
+        <aside
+          id="mk-filters"
+          aria-label={t('catalog.filters')}
+          className={`${areFiltersOpen ? 'fixed inset-0 z-[70] flex' : 'hidden'} lg:static lg:z-auto lg:col-span-3 lg:block`}
+        >
+          <button type="button" tabIndex={-1} aria-label={t('catalog.hideFilters')} onClick={() => setAreFiltersOpen(false)} className="absolute inset-0 bg-black/70 lg:hidden" />
+          <div className="relative ml-auto flex h-full w-full max-w-sm flex-col border-l border-zinc-800 bg-[var(--mk-bg)] lg:sticky lg:top-36 lg:ml-0 lg:h-auto lg:max-w-none lg:border-l-0 lg:bg-transparent">
+            <div className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-800 px-6 lg:hidden">
+              <h2 className="text-base font-semibold text-white">{t('catalog.filters')}</h2>
+              <button type="button" onClick={() => setAreFiltersOpen(false)} className="grid size-9 place-items-center rounded-lg border border-zinc-800 text-zinc-400 hover:text-white" aria-label={t('catalog.hideFilters')}>
+                <X aria-hidden="true" size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-6 lg:overflow-visible lg:p-0">
+              <Filters
+                key={`${values.min_price}|${values.max_price}`}
+                values={values}
+                categories={categories}
+                onChange={updateParams}
+                onReset={resetFilters}
+              />
+            </div>
+            <div className="shrink-0 border-t border-zinc-800 px-6 py-4 lg:hidden">
+              <button type="button" onClick={() => setAreFiltersOpen(false)} className="h-10 w-full rounded-lg bg-[var(--mk-contrast)] text-sm font-semibold text-[var(--mk-on-contrast)] hover:bg-[var(--mk-contrast-hover)]">
+                {result.status === 'ready' ? t('catalog.showResults', { count: formatNumber(total) }) : t('catalog.hideFilters')}
+              </button>
+            </div>
           </div>
         </aside>
 

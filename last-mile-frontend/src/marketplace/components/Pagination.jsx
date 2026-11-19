@@ -39,7 +39,7 @@ export default function Pagination({ page, totalPages, onPageChange }) {
               onClick={() => onPageChange(item)}
               aria-current={item === page ? 'page' : undefined}
               aria-label={t('pagination.page', { page: item })}
-              className={`${buttonClass} ${item === page ? 'border-white bg-white font-semibold text-zinc-950' : 'border-zinc-800 text-zinc-300 hover:border-zinc-600'}`}
+              className={`${buttonClass} ${item === page ? 'border-[var(--mk-contrast)] bg-[var(--mk-contrast)] font-semibold text-[var(--mk-on-contrast)]' : 'border-zinc-800 text-zinc-300 hover:border-zinc-600'}`}
             >
               {item}
             </button>

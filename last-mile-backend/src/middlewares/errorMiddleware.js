@@ -12,6 +12,8 @@ export const globalErrorHandler = (err, req, res, next) => {
 
   res.status(statusCode).json({
     error: err.message || 'Une erreur interne du serveur est survenue.',
+    // Code metier (ex. INVALID_CURRENT_PASSWORD) pour les erreurs volontaires uniquement
+    ...(err.statusCode && err.statusCode < 500 && typeof err.code === 'string' && /^[A-Z_]+$/.test(err.code) ? { code: err.code } : {}),
     stack: process.env.NODE_ENV === 'production' ? null : err.stack
   });
 };

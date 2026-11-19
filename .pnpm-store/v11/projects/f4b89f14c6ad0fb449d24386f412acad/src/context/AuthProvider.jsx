@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import AuthSplash from '../components/auth/AuthSplash.jsx'
 import authService from '../services/authService.js'
 import { AUTH_UNAUTHORIZED_EVENT } from '../services/api.js'
-import { clearAuthToken, getAuthToken, persistAuthToken } from '../services/tokenStorage.js'
+import { clearAuthToken, getAuthToken, persistAuthToken, replaceAuthToken } from '../services/tokenStorage.js'
 import { AuthContext } from './auth.js'
 import { resolveAvatarUrl } from '../utils/avatar.js'
 
@@ -91,6 +91,13 @@ export default function AuthProvider({ children }) {
       : currentUser)
   }
 
+  // Nouveau jeton emis par le serveur (mot de passe change, autres sessions deconnectees)
+  const refreshToken = (nextToken) => {
+    if (!nextToken) return
+    replaceAuthToken(nextToken)
+    setToken(nextToken)
+  }
+
   const logout = () => {
     clearAuthToken()
     setToken(null)
@@ -102,6 +109,7 @@ export default function AuthProvider({ children }) {
     isAuthenticated: Boolean(token && user),
     isLoading,
     logout,
+    refreshToken,
     token,
     updateUser,
     user,

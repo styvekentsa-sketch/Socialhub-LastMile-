@@ -13,7 +13,7 @@ export default function NotFoundPage() {
       <h1 className="mt-4 text-4xl font-semibold text-white">{t('notFound.title')}</h1>
       <p className="mt-4 max-w-xl text-base text-zinc-400">{t('notFound.text')}</p>
       <div className="mt-8 flex flex-wrap gap-3">
-        <Link to="/" className="inline-flex h-11 items-center rounded-lg bg-white px-5 text-sm font-semibold text-zinc-950 transition-colors hover:bg-zinc-200">{t('notFound.home')}</Link>
+        <Link to="/" className="inline-flex h-11 items-center rounded-lg bg-[var(--mk-contrast)] px-5 text-sm font-semibold text-[var(--mk-on-contrast)] transition-colors hover:bg-[var(--mk-contrast-hover)]">{t('notFound.home')}</Link>
         <Link to="/catalogue" className="inline-flex h-11 items-center rounded-lg border border-zinc-700 px-5 text-sm font-semibold text-white transition-colors hover:border-zinc-500">{t('notFound.catalog')}</Link>
         <Link to="/suivi" className="inline-flex h-11 items-center rounded-lg border border-zinc-700 px-5 text-sm font-semibold text-white transition-colors hover:border-zinc-500">{t('notFound.tracking')}</Link>
       </div>

@@ -28,6 +28,7 @@ import { getApiErrorMessage } from '../services/api.js'
 import publicShopService from '../services/publicShopService.js'
 import { createPaymentSocket } from '../services/paymentSocket.js'
 import { resolveAvatarUrl } from '../utils/avatar.js'
+import { removeShopFromStoredCart } from '../marketplace/cart/cartStorage.js'
 
 const DISTRICTS = ['Akwa', 'Bonamoussadi', 'Ndogbong', 'Bonapriso', 'Deido']
 const INITIAL_CHECKOUT = {
@@ -278,12 +279,39 @@ function SuccessSheet({ checkoutResult, district, language, onClose, t }) {
   )
 }
 
+const MAX_PREFILL_LINES = 50
+
+/** Articles transmis par le portail : ?panier=12:2,15:1 ou ?produit=12&quantite=2. */
+function readPrefill(searchParams) {
+  const toLine = (id, quantity) => {
+    const productId = Number(id)
+    const parsedQuantity = Number.parseInt(quantity, 10)
+    return Number.isSafeInteger(productId) && productId > 0
+      ? { productId, quantity: Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? Math.min(parsedQuantity, 99) : 1 }
+      : null
+  }
+  const basket = searchParams.get('panier')
+  if (basket) {
+    return basket.split(',').slice(0, MAX_PREFILL_LINES).map((entry) => toLine(...entry.split(':'))).filter(Boolean)
+  }
+  const single = toLine(searchParams.get('produit'), searchParams.get('quantite'))
+  return single ? [single] : []
+}
+
 export default function PublicShop({ installControl }) {
   const { slug } = useParams()
   const { language, t } = useLanguage()
   const [catalog, setCatalog] = useState(null)
   const [cart, setCart] = useState({})
-  const [checkout, setCheckout] = useState(INITIAL_CHECKOUT)
+  // Quartier par defaut choisi dans les preferences de la marketplace (s'il est desservi)
+  const [checkout, setCheckout] = useState(() => {
+    try {
+      const zone = JSON.parse(window.localStorage.getItem('last-mile-marketplace-zone') || '""')
+      return DISTRICTS.includes(zone) ? { ...INITIAL_CHECKOUT, district: zone } : INITIAL_CHECKOUT
+    } catch {
+      return INITIAL_CHECKOUT
+    }
+  })
   const [checkoutResult, setCheckoutResult] = useState(null)
   const [pendingPayment, setPendingPayment] = useState(null)
   const [countdown, setCountdown] = useState(30)
@@ -293,33 +321,45 @@ export default function PublicShop({ installControl }) {
   const [loadError, setLoadError] = useState('')
   const [checkoutError, setCheckoutError] = useState('')
   const [searchParams, setSearchParams] = useSearchParams()
-  // Arrivee depuis la fiche produit du portail : /shop/:slug?produit=ID&quantite=N
-  // Lu une seule fois : le produit est ajoute au panier et le paiement s'ouvre.
-  const prefillRef = useRef({
-    productId: Number(searchParams.get('produit')) || null,
-    quantity: Number.parseInt(searchParams.get('quantite'), 10) || 1,
-  })
+  // Arrivee depuis le portail : fiche produit (?produit=ID&quantite=N) ou panier (?panier=ID:N,ID:N).
+  // Lu une seule fois : les articles sont places dans le panier et le paiement s'ouvre.
+  const prefillRef = useRef(readPrefill(searchParams))
 
   const applyPrefill = useCallback((shopCatalog) => {
-    const { productId, quantity } = prefillRef.current
-    if (!productId) {
+    const lines = prefillRef.current
+    if (!lines.length) {
       return
     }
-    prefillRef.current = { productId: null, quantity: 1 }
+    prefillRef.current = []
     setSearchParams((current) => {
       const next = new URLSearchParams(current)
       next.delete('produit')
       next.delete('quantite')
+      next.delete('panier')
       return next
     }, { replace: true })
 
-    const product = shopCatalog?.products?.find((item) => Number(item.id) === productId)
-    if (!product || Number(product.stock) <= 0) {
+    // Seuls les produits reellement en stock dans cette boutique sont retenus (quantite plafonnee au stock)
+    const prefilledCart = {}
+    lines.forEach(({ productId, quantity }) => {
+      const product = shopCatalog?.products?.find((item) => Number(item.id) === productId)
+      if (product && Number(product.stock) > 0) {
+        prefilledCart[product.id] = Math.max(1, Math.min(Number(product.stock), quantity))
+      }
+    })
+    if (!Object.keys(prefilledCart).length) {
       return
     }
-    setCart({ [product.id]: Math.max(1, Math.min(Number(product.stock), quantity)) })
+    setCart(prefilledCart)
     setIsCheckoutOpen(true)
   }, [setSearchParams])
+
+  // Commande payee : les articles de cette boutique sont retires du panier du portail
+  useEffect(() => {
+    if (checkoutResult?.payment_status === 'paid') {
+      removeShopFromStoredCart(slug)
+    }
+  }, [checkoutResult, slug])
 
   const loadCatalog = useCallback(async ({ silent = false } = {}) => {
     if (!silent) {

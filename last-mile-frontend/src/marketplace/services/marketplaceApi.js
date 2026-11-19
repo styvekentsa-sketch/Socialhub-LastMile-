@@ -43,6 +43,38 @@ export const fetchTracking = async (code, { signal } = {}) => {
   return data
 }
 
+// ---------- API « marketplace pro » (/api/marketplace) ----------
+
+/** params : { q, category, min_price, max_price, in_stock, merchant_id, sort: newest|price_asc|price_desc|top_rated, page, limit } */
+export const fetchMarketplaceProducts = async (params = {}, { signal } = {}) => {
+  const { data } = await api.get('/api/marketplace/products', { params: compactParams(params), signal })
+  return data
+}
+
+/** Autocompletion : { products: [5 max], categories: [3 max] } */
+export const fetchSuggestions = async (q, { signal } = {}) => {
+  const { data } = await api.get('/api/marketplace/suggestions', { params: { q }, signal })
+  return data
+}
+
+/** Fiche enrichie : { product, avg_rating, review_count, rating_distribution, reviews, similar_products } */
+export const fetchProductDetails = async (productId, { signal } = {}) => {
+  const { data } = await api.get(`/api/marketplace/products/${encodeURIComponent(productId)}`, { signal })
+  return data
+}
+
+/** payload : { rating, customer_name, comment, tracking_code } ; reponse : { review } */
+export const postReview = async (productId, payload) => {
+  const { data } = await api.post(`/api/marketplace/products/${encodeURIComponent(productId)}/reviews`, payload)
+  return data
+}
+
+/** Vitrine : { shop, products: { items, pagination, sort } } */
+export const fetchShopShowcase = async (slug, params = {}, { signal } = {}) => {
+  const { data } = await api.get(`/api/marketplace/shops/${encodeURIComponent(slug)}`, { params: compactParams(params), signal })
+  return data
+}
+
 export const isRequestCancelled = (error) => error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError'
 
 /** Cle de message d'erreur (voir i18n.js) adaptee a la reponse du serveur. */

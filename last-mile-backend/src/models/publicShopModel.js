@@ -10,7 +10,7 @@ const createDomainError = (message, statusCode) => {
 export const PublicShopModel = {
   async findShopBySlug(slug) {
     const [shops] = await pool.query(
-      `SELECT id, name, phone, avatar, shop_slug
+      `SELECT id, COALESCE(NULLIF(shop_name, ''), name) AS name, phone, avatar, shop_slug, shop_status
       FROM users
       WHERE role = 'merchant' AND shop_slug = ?
       LIMIT 1`,
@@ -41,7 +41,7 @@ export const PublicShopModel = {
       await connection.beginTransaction();
 
       const [shops] = await connection.query(
-        `SELECT id, name, phone, avatar, shop_slug
+        `SELECT id, COALESCE(NULLIF(shop_name, ''), name) AS name, phone, avatar, shop_slug, shop_status
         FROM users
         WHERE role = 'merchant' AND shop_slug = ?
         LIMIT 1
@@ -52,6 +52,11 @@ export const PublicShopModel = {
 
       if (!shop) {
         throw createDomainError('Boutique introuvable.', 404);
+      }
+
+      // Boutique mise en pause par le marchand (Parametres > Boutique) : aucune nouvelle commande
+      if (shop.shop_status === 'paused') {
+        throw createDomainError('Cette boutique est momentanement en pause et ne prend pas de commandes.', 409);
       }
 
       const productIds = cart.map((item) => item.productId);
@@ -199,7 +204,7 @@ export const PublicShopModel = {
         o.provider_transaction_id,
         o.payment_redirect_url,
         o.checkout_total,
-        u.name AS shop_name,
+        COALESCE(NULLIF(u.shop_name, ''), u.name) AS shop_name,
         u.phone AS shop_phone,
         u.shop_slug
       FROM orders o

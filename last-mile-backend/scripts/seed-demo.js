@@ -91,8 +91,22 @@ const ORDERS = [
     address: 'Akwa, Douala', lat: 4.0483, lng: 9.7043, description: 'Commande boutique en ligne',
     history: [['pending', 'merchant']],
     shop: { method: 'orange_money', items: [['Parfum Signature 100 ml', 1], ['Lunettes Polarisées Nova', 1]] }
+  },
+  {
+    // Commande boutique payee ET livree : le client a laisse des avis verifies (marketplace)
+    client: 'Client Démo G', phone: '+237 690 000 107', email: 'client.g@demo.lastmile.test',
+    address: 'Bonamoussadi, Douala', lat: 4.0908, lng: 9.7468, description: 'Commande boutique en ligne',
+    history: [['pending', 'merchant'], ['assigned', 'admin'], ['picking', 'driver'], ['in_transit', 'driver'], ['delivered', 'driver']],
+    // Les Sneakers n'ont pas encore d'avis : de quoi montrer le formulaire d'avis avec le code de suivi de cette commande
+    shop: { method: 'mtn_momo', items: [['Casque Bluetooth Studio', 1], ['Montre Connectée Active', 1], ['Sneakers Urban Run', 1]] },
+    reviews: [
+      ['Casque Bluetooth Studio', 5, 'Mireille Ngo', 'Son excellent et réduction de bruit efficace. Livré en moins de deux heures.'],
+      ['Montre Connectée Active', 4, 'Mireille Ngo', 'Bonne autonomie, le bracelet est un peu rigide au début.']
+    ]
   }
 ];
+
+const SHOP_DESCRIPTION = 'Boutique de démonstration Last-Mile : mode, électronique et accessoires, livrés à Douala en quelques heures.';
 
 const upsertUser = async (connection, account, passwordHash, shopSlug = null) => {
   const [rows] = await connection.query('SELECT id FROM users WHERE email = ? LIMIT 1', [account.email]);
@@ -128,6 +142,8 @@ try {
     merchant: await upsertUser(connection, ACCOUNTS.merchant, passwordHash, SHOP_SLUG),
     driver: await upsertUser(connection, ACCOUNTS.driver, passwordHash)
   };
+  // Vitrine publique : description et badge « boutique verifiee »
+  await connection.query('UPDATE users SET shop_description = ?, is_verified = 1 WHERE id = ?', [SHOP_DESCRIPTION, ids.merchant]);
 
   // Produits (mis a jour par nom)
   const productsByName = new Map();
@@ -158,6 +174,8 @@ try {
     await connection.query('DELETE FROM order_items WHERE order_id IN (?)', [oldIds]);
     await connection.query('DELETE FROM orders WHERE id IN (?)', [oldIds]);
   }
+  // Avis de demo recrees a chaque execution (sinon ils s'accumuleraient)
+  await connection.query('DELETE FROM product_reviews WHERE product_id IN (SELECT id FROM products WHERE merchant_id = ?)', [ids.merchant]);
 
   const created = [];
   const now = Date.now();
@@ -196,6 +214,15 @@ try {
       await connection.query(
         'INSERT INTO order_items (order_id, product_id, product_name, unit_price, quantity) VALUES (?, ?, ?, ?, ?)',
         [orderId, item.id, item.name, item.price, item.quantity]
+      );
+    }
+
+    // Avis verifies laisses par le client apres la livraison (meme regle que l'API : commande livree)
+    for (const [productName, rating, author, comment] of order.reviews || []) {
+      await connection.query(
+        `INSERT INTO product_reviews (product_id, order_id, customer_name, customer_phone, rating, comment, is_verified_purchase, created_at)
+        VALUES (?, ?, ?, NULL, ?, ?, 1, ?)`,
+        [productsByName.get(productName).id, orderId, author, rating, comment, new Date(createdAt.getTime() + 6 * 60 * 60 * 1000)]
       );
     }
 

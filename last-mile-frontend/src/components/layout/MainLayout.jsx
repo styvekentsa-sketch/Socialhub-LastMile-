@@ -8,6 +8,7 @@ import {
   Package,
   PackagePlus,
   Route as RouteIcon,
+  Settings as SettingsIcon,
   Share2,
   Store,
   Truck,
@@ -33,16 +34,19 @@ const NAVIGATION_BY_ROLE = {
     { to: '/social', labelKey: 'nav.social', icon: Share2, hideOnMobile: true },
     { to: '/tracking', labelKey: 'nav.tracking', icon: MapPinned },
     { to: '/profile', labelKey: 'nav.profile', icon: CircleUserRound },
+    { to: '/espace/settings', labelKey: 'nav.settings', icon: SettingsIcon, hideOnMobile: true },
   ],
   driver: [
     { to: '/deliveries', labelKey: 'nav.deliveries', mobileLabelKey: 'nav.deliveriesMobile', icon: Truck },
     { to: '/map', labelKey: 'nav.map', icon: Map },
     { to: '/profile', labelKey: 'nav.profile', icon: CircleUserRound },
+    { to: '/espace/settings', labelKey: 'nav.settings', icon: SettingsIcon },
   ],
   admin: [
     { to: '/orders', labelKey: 'nav.orders', icon: Package },
     { to: '/tracking', labelKey: 'nav.tracking', icon: MapPinned },
     { to: '/profile', labelKey: 'nav.profile', icon: CircleUserRound },
+    { to: '/espace/settings', labelKey: 'nav.settings', icon: SettingsIcon },
   ],
 }
 
@@ -237,6 +241,10 @@ function Header({ isConnected, onLogout, title, user, t }) {
                 <NavLink to="/profile" onClick={() => setIsProfileMenuOpen(false)} className="flex h-10 items-center gap-3 rounded-md px-3 text-sm text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white" role="menuitem">
                   <CircleUserRound aria-hidden="true" size={17} />
                   {t('nav.profile')}
+                </NavLink>
+                <NavLink to="/espace/settings" onClick={() => setIsProfileMenuOpen(false)} className="flex h-10 items-center gap-3 rounded-md px-3 text-sm text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white" role="menuitem">
+                  <SettingsIcon aria-hidden="true" size={17} />
+                  {t('nav.settings')}
                 </NavLink>
                 <button type="button" onClick={onLogout} className="flex h-10 w-full items-center gap-3 rounded-md px-3 text-sm text-rose-600 transition-colors hover:bg-rose-500/10 dark:text-rose-400" role="menuitem">
                   <LogOut aria-hidden="true" size={17} />

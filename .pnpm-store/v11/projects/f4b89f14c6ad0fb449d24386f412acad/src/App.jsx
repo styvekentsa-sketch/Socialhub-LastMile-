@@ -11,6 +11,7 @@ import LanguageProvider from './context/LanguageProvider.jsx'
 import SocketProvider from './context/SocketProvider.jsx'
 import ThemeProvider from './context/ThemeProvider.jsx'
 import { ROLE_DASHBOARDS, useAuth } from './context/auth.js'
+import { readMarketplaceTheme } from './marketplace/theme.js'
 
 const Login = lazy(() => import('./pages/Login.jsx'))
 const CreateOrder = lazy(() => import('./pages/CreateOrder.jsx'))
@@ -28,6 +29,7 @@ const DriverMapPage = lazy(() => import('./pages/WorkspacePages.jsx')
 
 // Portail public (marketplace) : charge a la demande, dans ses propres fichiers JS et CSS,
 // pour ne pas alourdir l'espace prive.
+const Settings = lazy(() => import('./pages/Settings.jsx'))
 const MarketplaceLayout = lazy(() => import('./marketplace/MarketplaceLayout.jsx'))
 const MarketplaceHome = lazy(() => import('./marketplace/pages/HomePage.jsx'))
 const MarketplaceCatalog = lazy(() => import('./marketplace/pages/CatalogPage.jsx'))
@@ -36,12 +38,16 @@ const MarketplaceShops = lazy(() => import('./marketplace/pages/ShopsPage.jsx'))
 const MarketplaceTracking = lazy(() => import('./marketplace/pages/TrackingPage.jsx'))
 const MarketplacePartner = lazy(() => import('./marketplace/pages/PartnerPage.jsx'))
 const MarketplaceNotFound = lazy(() => import('./marketplace/pages/NotFoundPage.jsx'))
+const MarketplaceShop = lazy(() => import('./marketplace/pages/ShopPage.jsx'))
+const MarketplaceWishlist = lazy(() => import('./marketplace/pages/WishlistPage.jsx'))
 
 // Premier segment d'URL des pages qui ne relevent pas du portail public
-const PRIVATE_SEGMENTS = new Set(['espace', 'orders', 'create', 'catalog', 'social', 'tracking', 'deliveries', 'map', 'profile', 'shop'])
+const PRIVATE_SEGMENTS = new Set(['espace', 'orders', 'create', 'catalog', 'social', 'tracking', 'deliveries', 'map', 'profile'])
+// Paiement d'une boutique (/shop/:slug/commande) : page autonome, hors du portail
+const isShopCheckout = (pathname) => /^\/shop\/[^/]+\/commande\/?$/.test(pathname)
 
-// Ecran d'attente du portail : meme fond que le portail, sans l'ecran de demarrage de l'espace prive
-const MarketplaceFallback = () => <div className="h-dvh bg-[#09090b]" />
+// Ecran d'attente du portail : meme fond que le theme choisi, sans l'ecran de demarrage de l'espace prive
+const MarketplaceFallback = () => <div className={`h-dvh ${readMarketplaceTheme() === 'dark' ? 'bg-[#09090b]' : 'bg-[#f8fafc]'}`} />
 
 function DashboardRedirect() {
   const { user } = useAuth()
@@ -53,19 +59,23 @@ function AnimatedRoutes() {
   const firstSegment = location.pathname.split('/')[1] || ''
   const routeKey = ['/login', '/register'].includes(location.pathname)
     ? location.pathname
-    : PRIVATE_SEGMENTS.has(firstSegment) ? 'authenticated-app' : 'marketplace'
+    : isShopCheckout(location.pathname) ? 'shop-checkout'
+      : PRIVATE_SEGMENTS.has(firstSegment) ? 'authenticated-app' : 'marketplace'
 
   return (
     <AnimatePresence mode="wait" initial={false}>
       <Routes location={location} key={routeKey}>
         <Route path="login" element={<Login installControl={<PwaInstallButton />} />} />
         <Route path="register" element={<Register installControl={<PwaInstallButton />} />} />
-        <Route path="shop/:slug" element={<PublicShop installControl={<PwaInstallButton />} />} />
+        {/* Vitrine /shop/:slug dans le portail ; paiement de la boutique sur /shop/:slug/commande */}
+        <Route path="shop/:slug/commande" element={<PublicShop installControl={<PwaInstallButton />} />} />
         <Route element={<Suspense fallback={<MarketplaceFallback />}><MarketplaceLayout /></Suspense>}>
           <Route index element={<MarketplaceHome />} />
           <Route path="catalogue" element={<MarketplaceCatalog />} />
           <Route path="produits/:id" element={<MarketplaceProduct />} />
           <Route path="boutiques" element={<MarketplaceShops />} />
+          <Route path="shop/:slug" element={<MarketplaceShop />} />
+          <Route path="wishlist" element={<MarketplaceWishlist />} />
           <Route path="suivi" element={<MarketplaceTracking />} />
           <Route path="suivi/:code" element={<MarketplaceTracking />} />
           <Route path="devenir-partenaire" element={<MarketplacePartner />} />
@@ -88,6 +98,7 @@ function AnimatedRoutes() {
           <Route path="deliveries" element={<DeliveriesPage />} />
           <Route path="map" element={<DriverMapPage />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="espace/settings" element={<Suspense fallback={null}><Settings /></Suspense>} />
         </Route>
       </Routes>
     </AnimatePresence>

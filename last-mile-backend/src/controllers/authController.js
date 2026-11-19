@@ -1,7 +1,7 @@
 // FILE: src/controllers/authController.js
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 import UserModel from '../models/userModel.js';
+import { signSessionToken } from '../utils/authToken.js';
 
 const ALLOWED_REGISTRATION_ROLES = new Set(['merchant', 'driver', 'client']);
 
@@ -90,11 +90,8 @@ export const login = async (req, res) => {
       return res.status(500).json({ message: 'Configuration JWT manquante.' });
     }
 
-    const token = jwt.sign(
-      { id: user.id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    const token = signSessionToken(user, user.token_version);
+    await UserModel.recordLogin(user.id);
 
     return res.status(200).json({
       token,

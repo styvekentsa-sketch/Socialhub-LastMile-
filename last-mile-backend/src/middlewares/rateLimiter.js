@@ -62,5 +62,19 @@ export const socialPublishRateLimiter = createRateLimiter({
   keyGenerator: (req) => `marchand-${req.user?.id ?? ipKey(req)}`
 });
 
+// Autocompletion : une requete par frappe, plafond plus large que la recherche
+export const suggestionRateLimiter = createRateLimiter({ name: 'suggestions', windowMs: 60 * 1000, max: 120 });
+
+// Depot d'avis : limite les essais de codes de suivi ou de numeros
+export const reviewRateLimiter = createRateLimiter({ name: 'avis clients', windowMs: 15 * 60 * 1000, max: 20 });
+
 // Catalogue et recherche produits
 export const productSearchRateLimiter = createRateLimiter({ name: 'recherche produits', windowMs: 60 * 1000, max: 60 });
+
+// Changement de mot de passe : 10 tentatives par quart d'heure et par compte (anti force brute du mot de passe actuel)
+export const passwordChangeRateLimiter = createRateLimiter({
+  name: 'changement de mot de passe',
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => `user:${req.user?.id ?? req.ip}`
+});
